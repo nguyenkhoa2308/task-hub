@@ -1,0 +1,24 @@
+# Node dependencies
+node_modules/
+dist/
+.next/
+out/
+build/
+
+# Local env files
+.env*.local
+.env
+
+# IDEs
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
