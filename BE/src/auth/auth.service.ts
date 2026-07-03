@@ -19,12 +19,12 @@ export class AuthService {
     private usersService: UsersService,
     private jwtService: JwtService,
     private mailService: MailService,
-  ) {}
+  ) { }
 
   async signUp(dto: SignUpDto) {
     const existingUser = await this.usersService.findByEmail(dto.email);
     if (existingUser) {
-      throw new ConflictException('Email already exists');
+      throw new ConflictException('Email đã tồn tại');
     }
 
     const hashedPassword = await bcrypt.hash(dto.password, 10);
@@ -48,7 +48,7 @@ export class AuthService {
 
     return {
       message:
-        'Đăng ký thành công! Hãy check email để verify tài khoản của bạn.',
+        'Đăng ký thành công! Hãy kiểm tra email để xác thực tài khoản của bạn.',
     };
   }
 

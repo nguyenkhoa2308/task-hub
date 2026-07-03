@@ -24,7 +24,7 @@ export class MailService {
 
     try {
       await this.transporter.sendMail({
-        from: `"Task Hub" <${process.env.MAIL_FROM || process.env.MAIL_USER}>`,
+        from: `"Task Hub"`,
         to: email,
         subject: 'Xác thực tài khoản Task Hub',
         html: `

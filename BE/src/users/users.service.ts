@@ -24,7 +24,10 @@ export class UsersService {
   }
 
   async create(data: { name: string; email: string; password: string }) {
-    const user = new this.userModel(data);
+    const user = new this.userModel({
+      ...data,
+      expireAt: new Date(),
+    });
     return user.save();
   }
 
@@ -44,6 +47,7 @@ export class UsersService {
       isEmailVerified: true,
       emailVerifyToken: null,
       emailVerifyExpires: null,
+      $unset: { expireAt: 1 },
     });
   }
 

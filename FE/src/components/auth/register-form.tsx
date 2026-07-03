@@ -15,8 +15,10 @@ import {
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
+import { useSignUpMutation } from "@/hooks/use-auth";
+import { toast } from "sonner";
 
-type SignUpFormData = z.infer<typeof signUpSchema>;
+export type SignUpFormData = z.infer<typeof signUpSchema>;
 
 export default function RegisterForm() {
   const form = useForm<SignUpFormData>({
@@ -29,8 +31,20 @@ export default function RegisterForm() {
     },
   });
 
+  const { mutate, isPending, error } = useSignUpMutation();
+
   const handleOnSubmit = (values: SignUpFormData) => {
-    console.log(values);
+    const { confirmPassword, ...signUpData } = values;
+    mutate(signUpData, {
+      onSuccess: () => {
+        toast.success('Đăng ký thành công!')
+      },
+      onError: (error: any) => {
+        const errorMessage = error.response?.data?.message || "Đã có lỗi xảy ra";
+        console.log(error);
+        toast.error(errorMessage)
+      },
+    });
   };
 
   return (
@@ -124,8 +138,8 @@ export default function RegisterForm() {
           )}
         />
 
-        <Button type="submit" className="w-full h-12">
-          Đăng ký
+        <Button type="submit" className="w-full h-12" disabled={isPending}>
+          {isPending ? 'Đang xử lý...' : 'Đăng ký'}
         </Button>
       </FieldGroup>
     </form>

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Controller, useForm } from "react-hook-form";
+import { toast } from "sonner";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 
@@ -15,8 +16,9 @@ import {
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
+import { useSignInMutation } from "@/hooks/use-auth";
 
-type SigninFormData = z.infer<typeof signInSchema>;
+export type SigninFormData = z.infer<typeof signInSchema>;
 
 export default function LoginForm() {
   const form = useForm<SigninFormData>({
@@ -26,9 +28,17 @@ export default function LoginForm() {
       password: "",
     },
   });
+  const { mutate, isPending, error } = useSignInMutation();
 
   const handleOnSubmit = (values: SigninFormData) => {
-    console.log(values);
+    mutate(values, {
+      onSuccess: () => {
+        toast.success('Đăng nhập thành công!');
+      },
+      onError: (error: any) => {
+        toast.error(error.message);
+      }
+    })
   };
 
   return (

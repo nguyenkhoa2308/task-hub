@@ -6,14 +6,14 @@ import { SignInDto } from './dto/sign-in.dto';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) { }
 
-  @Post('signup')
+  @Post('register')
   async signUp(@Body() dto: SignUpDto) {
     return this.authService.signUp(dto);
   }
 
-  @Post('signin')
+  @Post('login')
   async signIn(
     @Body() dto: SignInDto,
     @Res({ passthrough: true }) res: Response,
