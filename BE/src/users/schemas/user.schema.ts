@@ -36,10 +36,16 @@ export class User {
   refreshToken?: string;
 
   @Prop({ select: false })
-  emailVerifyToken?: string;
+  emailVerifyOtp?: string;
 
   @Prop({ select: false })
-  emailVerifyExpires?: Date;
+  emailVerifyOtpExpires?: Date;
+
+  @Prop({ select: false })
+  passwordResetOtp?: string;
+
+  @Prop({ select: false })
+  passwordResetOtpExpires?: Date;
 
   @Prop({ type: Date, expires: '15m' })
   expireAt?: Date;

@@ -1,6 +1,9 @@
 "use client";
 
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
+import { toast } from "sonner";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 
@@ -16,11 +19,17 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { useSignUpMutation } from "@/hooks/use-auth";
-import { toast } from "sonner";
+import { Eye, EyeOff } from "lucide-react";
+
 
 export type SignUpFormData = z.infer<typeof signUpSchema>;
 
 export default function RegisterForm() {
+  const router = useRouter()
+
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+
   const form = useForm<SignUpFormData>({
     resolver: zodResolver(signUpSchema),
     defaultValues: {
@@ -37,11 +46,14 @@ export default function RegisterForm() {
     const { confirmPassword, ...signUpData } = values;
     mutate(signUpData, {
       onSuccess: () => {
-        toast.success('Đăng ký thành công!')
+        toast.success('Đăng ký thành công!', {
+          description: "Vui lòng kiểm tra email để xác thực tài khoản. Nếu chưa nhận được email sau 5 phút, vui lòng kiểm tra hộp thư spam.",
+        })
+        form.reset()
+        router.push(`/auth/verify-email?email=${encodeURIComponent(signUpData.email)}`)
       },
       onError: (error: any) => {
-        const errorMessage = error.response?.data?.message || "Đã có lỗi xảy ra";
-        console.log(error);
+        const errorMessage = error.message || "Đã có lỗi xảy ra";
         toast.error(errorMessage)
       },
     });
@@ -101,13 +113,24 @@ export default function RegisterForm() {
             <Field data-invalid={fieldState.invalid}>
               <FieldContent>
                 <FieldLabel htmlFor={field.name}>Mật khẩu</FieldLabel>
-                <Input
-                  {...field}
-                  id={field.name}
-                  type="password"
-                  placeholder="••••••••"
-                  aria-invalid={fieldState.invalid}
-                />
+                <div className="relative">
+                  <Input
+                    {...field}
+                    id={field.name}
+                    type={showPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    aria-invalid={fieldState.invalid}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-muted-foreground hover:text-foreground"
+                  >
+                    <span className="pointer-events-none">
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </span>
+                  </button>
+                </div>
                 {fieldState.invalid && (
                   <FieldError errors={[fieldState.error]} />
                 )}
@@ -123,13 +146,24 @@ export default function RegisterForm() {
             <Field data-invalid={fieldState.invalid}>
               <FieldContent>
                 <FieldLabel htmlFor={field.name}>Xác nhận mật khẩu</FieldLabel>
-                <Input
-                  {...field}
-                  id={field.name}
-                  type="password"
-                  placeholder="••••••••"
-                  aria-invalid={fieldState.invalid}
-                />
+                <div className="relative">
+                  <Input
+                    {...field}
+                    id={field.name}
+                    type={showConfirmPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    aria-invalid={fieldState.invalid}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-muted-foreground hover:text-foreground"
+                  >
+                    <span className="pointer-events-none">
+                      {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </span>
+                  </button>
+                </div>
                 {fieldState.invalid && (
                   <FieldError errors={[fieldState.error]} />
                 )}

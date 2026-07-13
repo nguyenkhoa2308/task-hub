@@ -16,10 +16,10 @@ export class UsersService {
     return this.userModel.findById(id).exec();
   }
 
-  async findByVerifyToken(token: string) {
+  async findByEmailAndVerifyOtp(email: string, otp: string) {
     return this.userModel
-      .findOne({ emailVerifyToken: token })
-      .select('+emailVerifyToken +emailVerifyExpires')
+      .findOne({ email, emailVerifyOtp: otp })
+      .select('+emailVerifyOtp +emailVerifyOtpExpires')
       .exec();
   }
 
@@ -31,29 +31,64 @@ export class UsersService {
     return user.save();
   }
 
-  async saveVerifyToken(
+  async saveVerifyOtp(
     userId: string,
-    token: string,
+    otp: string,
     expires: Date,
   ): Promise<void> {
     await this.userModel.findByIdAndUpdate(userId, {
-      emailVerifyToken: token,
-      emailVerifyExpires: expires,
+      emailVerifyOtp: otp,
+      emailVerifyOtpExpires: expires,
     });
   }
 
   async markEmailVerified(userId: string): Promise<void> {
     await this.userModel.findByIdAndUpdate(userId, {
       isEmailVerified: true,
-      emailVerifyToken: null,
-      emailVerifyExpires: null,
-      $unset: { expireAt: 1 },
+      $unset: { 
+        expireAt: 1,
+        emailVerifyOtp: 1,
+        emailVerifyOtpExpires: 1
+      },
     });
   }
 
   async updateRefreshToken(userId: string, refreshToken: string | null) {
     const hashed = refreshToken ? await bcrypt.hash(refreshToken, 10) : null;
     return this.userModel.findByIdAndUpdate(userId, { refreshToken: hashed });
+  }
+
+  async savePasswordResetOtp(
+    userId: string,
+    otp: string,
+    expires: Date,
+  ): Promise<void> {
+    await this.userModel.findByIdAndUpdate(userId, {
+      passwordResetOtp: otp,
+      passwordResetOtpExpires: expires,
+    });
+  }
+
+  async findByEmailAndResetOtp(email: string, otp: string) {
+    return this.userModel
+      .findOne({ email, passwordResetOtp: otp })
+      .select('+passwordResetOtp +passwordResetOtpExpires')
+      .exec();
+  }
+
+  async clearPasswordResetOtp(userId: string): Promise<void> {
+    await this.userModel.findByIdAndUpdate(userId, {
+      $unset: {
+        passwordResetOtp: 1,
+        passwordResetOtpExpires: 1,
+      },
+    });
+  }
+
+  async updatePassword(userId: string, hashedPassword: string): Promise<void> {
+    await this.userModel.findByIdAndUpdate(userId, {
+      password: hashedPassword,
+    });
   }
 }
 

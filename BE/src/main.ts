@@ -1,8 +1,10 @@
 import { ValidationPipe } from '@nestjs/common';
-import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
-import * as dns from 'node:dns';
+import { NestFactory, APP_GUARD } from '@nestjs/core';
+
 import cookieParser from 'cookie-parser';
+import * as dns from 'node:dns';
+
+import { AppModule } from './app.module';
 
 dns.setServers(['8.8.8.8', '1.1.1.1']);
 

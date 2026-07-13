@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -17,10 +19,14 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { useSignInMutation } from "@/hooks/use-auth";
+import { Eye, EyeOff } from "lucide-react";
 
 export type SigninFormData = z.infer<typeof signInSchema>;
 
 export default function LoginForm() {
+  const router = useRouter()
+  const [showPassword, setShowPassword] = useState(false)
+
   const form = useForm<SigninFormData>({
     resolver: zodResolver(signInSchema),
     defaultValues: {
@@ -36,7 +42,13 @@ export default function LoginForm() {
         toast.success('Đăng nhập thành công!');
       },
       onError: (error: any) => {
-        toast.error(error.message);
+        const errorMessage = error.message || "Đã có lỗi xảy ra";
+        if (errorMessage === "EMAIL_NOT_VERIFIED") {
+          toast.error("Tài khoản chưa được xác thực. Vui lòng kiểm tra mã OTP.");
+          router.push(`/auth/verify-email?email=${encodeURIComponent(values.email)}`);
+          return;
+        }
+        toast.error(errorMessage)
       }
     })
   };
@@ -76,18 +88,29 @@ export default function LoginForm() {
                   <FieldLabel htmlFor={field.name}>Mật khẩu</FieldLabel>
                   <Link
                     href="/auth/forgot-password"
-                    className="text-sm text-blue-600"
+                    className="text-sm text-blue-800 font-semibold hover:underline transition-colors"
                   >
                     Quên mật khẩu?
                   </Link>
                 </div>
-                <Input
-                  {...field}
-                  id={field.name}
-                  type="password"
-                  placeholder="••••••••"
-                  aria-invalid={fieldState.invalid}
-                />
+                <div className="relative">
+                  <Input
+                    {...field}
+                    id={field.name}
+                    type={showPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    aria-invalid={fieldState.invalid}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-muted-foreground hover:text-foreground"
+                  >
+                    <span className="pointer-events-none">
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </span>
+                  </button>
+                </div>
                 {fieldState.invalid && (
                   <FieldError errors={[fieldState.error]} />
                 )}

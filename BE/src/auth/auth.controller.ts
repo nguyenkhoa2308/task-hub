@@ -1,15 +1,36 @@
-import { Controller, Post, Get, Body, Query, Res } from '@nestjs/common';
-import type { Response } from 'express';
+import { Controller, Post, Get, Body, Query, Res, Inject, Req, HttpException, HttpStatus } from '@nestjs/common';
+import type { Request, Response } from 'express';
+import { ARCJET, type ArcjetNest, validateEmail } from '@arcjet/nest';
+
 import { AuthService } from './auth.service';
 import { SignUpDto } from './dto/sign-up.dto';
 import { SignInDto } from './dto/sign-in.dto';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) { }
+  constructor(
+    private readonly authService: AuthService,
+    @Inject(ARCJET) private readonly arcjet: ArcjetNest) { }
 
   @Post('register')
-  async signUp(@Body() dto: SignUpDto) {
+  async signUp(@Req() req: Request, @Body() dto: SignUpDto) {
+
+    const decision = await this.arcjet
+      .withRule(
+        validateEmail({
+          mode: 'LIVE',
+          deny: ['DISPOSABLE', 'INVALID', 'NO_MX_RECORDS'],
+        }),
+      )
+      .protect(req, { email: dto.email });
+
+    if (decision.isDenied()) {
+      throw new HttpException(
+        'Email không hợp lệ hoặc là email rác dùng một lần!',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
     return this.authService.signUp(dto);
   }
 
@@ -22,10 +43,9 @@ export class AuthController {
 
     const isProd = process.env.NODE_ENV === 'production';
 
-    // Set HttpOnly cookie — JS không đọc được, bảo mật hơn localStorage
     res.cookie('access_token', access_token, {
       httpOnly: true,
-      secure: isProd,       // chỉ HTTPS trên production
+      secure: isProd,
       sameSite: 'lax',
       maxAge: 15 * 60 * 1000, // 15 phút (khớp với JWT expiresIn)
     });
@@ -41,9 +61,26 @@ export class AuthController {
     return { message: 'Đăng nhập thành công!' };
   }
 
-  @Get('verify-email')
-  async verifyEmail(@Query('token') token: string) {
-    return this.authService.verifyEmail(token);
+  @Post('verify-email')
+  async verifyEmail(@Body() dto: { email: string; otp: string }) {
+    return this.authService.verifyEmail(dto.email, dto.otp);
+  }
+
+  @Post('resend-verification')
+  async resendVerification(@Body('email') email: string) {
+    return this.authService.resendVerification(email);
+  }
+
+  @Post('forgot-password')
+  async forgotPassword(@Body('email') email: string) {
+    return this.authService.forgotPassword(email);
+  }
+
+  @Post('reset-password')
+  async resetPassword(
+    @Body() dto: { email: string; otp: string; newPassword: string },
+  ) {
+    return this.authService.resetPassword(dto.email, dto.otp, dto.newPassword);
   }
 }
 

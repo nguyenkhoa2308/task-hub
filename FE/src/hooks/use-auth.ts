@@ -15,3 +15,28 @@ export const useSignInMutation = () => {
         mutationFn: (data: SigninFormData) => postData("/auth/login", data),
     })
 }
+
+export const useResendVerificationMutation = () => {
+    return useMutation({
+        mutationFn: (data: { email: string }) => postData("/auth/resend-verification", data),
+    });
+};
+
+export const useVerifyEmailMutation = () => {
+    return useMutation({
+        mutationFn: (data: { email: string; otp: string }) => postData("/auth/verify-email", data),
+    });
+};
+
+export const useForgotPasswordMutation = () => {
+    return useMutation({
+        mutationFn: (data: { email: string }) => postData("/auth/forgot-password", data),
+    });
+};
+
+export const useResetPasswordMutation = () => {
+    return useMutation({
+        mutationFn: (data: { email: string; otp: string; newPassword: string }) =>
+            postData("/auth/reset-password", data),
+    });
+};
