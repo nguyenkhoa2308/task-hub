@@ -1,5 +1,5 @@
-import { useMutation } from "@tanstack/react-query";
-import { postData } from "@/lib/axios";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { postData, getData } from "@/lib/axios";
 import type { SignUpFormData } from "@/components/auth/register-form";
 import { SigninFormData } from "@/components/auth/login-form";
 
@@ -38,5 +38,19 @@ export const useResetPasswordMutation = () => {
     return useMutation({
         mutationFn: (data: { email: string; otp: string; newPassword: string }) =>
             postData("/auth/reset-password", data),
+    });
+};
+
+export const useGetMeQuery = () => {
+    return useQuery({
+        queryKey: ["auth", "me"],
+        queryFn: () => getData("/auth/me"),
+        retry: false,
+    });
+};
+
+export const useLogoutMutation = () => {
+    return useMutation({
+        mutationFn: () => postData("/auth/logout", {}),
     });
 };

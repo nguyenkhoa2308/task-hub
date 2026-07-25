@@ -49,6 +49,9 @@ export class User {
 
   @Prop({ type: Date, expires: '15m' })
   expireAt?: Date;
+
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

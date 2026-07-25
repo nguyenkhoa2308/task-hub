@@ -7,6 +7,7 @@ import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Eye, EyeOff } from "lucide-react";
 
 import { signInSchema } from "@/lib/schema";
 import { Button } from "@/components/ui/button";
@@ -19,7 +20,8 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { useSignInMutation } from "@/hooks/use-auth";
-import { Eye, EyeOff } from "lucide-react";
+import { useAppDispatch } from "@/lib/redux/hooks";
+import { loginSuccess } from "@/lib/redux/features/authSlice";
 
 export type SigninFormData = z.infer<typeof signInSchema>;
 
@@ -34,12 +36,16 @@ export default function LoginForm() {
       password: "",
     },
   });
+
+  const dispatch = useAppDispatch();
   const { mutate, isPending, error } = useSignInMutation();
 
   const handleOnSubmit = (values: SigninFormData) => {
     mutate(values, {
-      onSuccess: () => {
+      onSuccess: (response: any) => {
         toast.success('Đăng nhập thành công!');
+        dispatch(loginSuccess(response.user));
+        router.push('/dashboard');
       },
       onError: (error: any) => {
         const errorMessage = error.message || "Đã có lỗi xảy ra";
@@ -89,6 +95,7 @@ export default function LoginForm() {
                   <Link
                     href="/auth/forgot-password"
                     className="text-sm text-blue-800 font-semibold hover:underline transition-colors"
+                    tabIndex={-1}
                   >
                     Quên mật khẩu?
                   </Link>
@@ -105,6 +112,7 @@ export default function LoginForm() {
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-muted-foreground hover:text-foreground"
+                    tabIndex={-1}
                   >
                     <span className="pointer-events-none">
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}

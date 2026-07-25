@@ -1,10 +1,12 @@
-import { Controller, Post, Get, Body, Query, Res, Inject, Req, HttpException, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Get, Body, Query, Res, Inject, Req, HttpException, HttpStatus, UseGuards } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { ARCJET, type ArcjetNest, validateEmail } from '@arcjet/nest';
 
 import { AuthService } from './auth.service';
 import { SignUpDto } from './dto/sign-up.dto';
 import { SignInDto } from './dto/sign-in.dto';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { RefreshTokenGuard } from './guards/refresh-token.guard';
 
 @Controller('auth')
 export class AuthController {
@@ -39,7 +41,7 @@ export class AuthController {
     @Body() dto: SignInDto,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const { access_token, refresh_token } = await this.authService.signIn(dto);
+    const { access_token, refresh_token, user } = await this.authService.signIn(dto);
 
     const isProd = process.env.NODE_ENV === 'production';
 
@@ -55,10 +57,55 @@ export class AuthController {
       secure: isProd,
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 ngày
-      path: '/auth/refresh', // chỉ gửi khi gọi endpoint refresh
+      path: '/',
     });
 
-    return { message: 'Đăng nhập thành công!' };
+    return { message: 'Đăng nhập thành công!', user };
+  }
+
+  @UseGuards(RefreshTokenGuard)
+  @Post('refresh')
+  async refresh(
+    @Req() req: Request & { user: { userId: string; refreshToken: string } },
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const tokens = await this.authService.refreshToken(
+      req.user.userId,
+      req.user.refreshToken,
+    );
+
+    const isProd = process.env.NODE_ENV === 'production';
+
+    res.cookie('access_token', tokens.access_token, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: 'lax',
+      maxAge: 15 * 60 * 1000,
+    });
+
+    res.cookie('refresh_token', tokens.refresh_token, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      path: '/',
+    });
+
+    return { message: 'Token refreshed thành công' };
+  }
+
+  @Post('logout')
+  async logout(@Res({ passthrough: true }) res: Response) {
+    res.clearCookie('access_token');
+    res.clearCookie('refresh_token', { path: '/' });
+    return { message: 'Đăng xuất thành công' };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('me')
+  async getMe(@Req() req: Request & { user: { userId: string; email: string } }) {
+    const user = await this.authService.getProfile(req.user.userId);
+    return { user };
   }
 
   @Post('verify-email')

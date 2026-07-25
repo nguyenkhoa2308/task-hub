@@ -85,7 +85,37 @@ export class AuthService {
       throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
     }
 
-    return this.generateTokens(user._id.toString(), user.email);
+    const tokens = this.generateTokens(user._id.toString(), user.email);
+    await this.usersService.updateRefreshToken(user._id.toString(), tokens.refresh_token);
+
+    return {
+      ...tokens,
+      user: {
+        _id: user._id.toString(),
+        name: user.name,
+        email: user.email,
+        profileImage: user.profileImage,
+        isEmailVerified: user.isEmailVerified,
+        createdAt: user.createdAt,
+      },
+    };
+  }
+
+  async refreshToken(userId: string, refreshToken: string) {
+    const user = await this.usersService.findByIdWithRefreshToken(userId);
+    if (!user || !user.refreshToken) {
+      throw new UnauthorizedException('Truy cập bị từ chối');
+    }
+
+    const isMatch = await bcrypt.compare(refreshToken, user.refreshToken);
+    if (!isMatch) {
+      throw new UnauthorizedException('Refresh token không hợp lệ');
+    }
+
+    const tokens = this.generateTokens(user._id.toString(), user.email);
+    await this.usersService.updateRefreshToken(user._id.toString(), tokens.refresh_token);
+
+    return tokens;
   }
 
   private generateTokens(userId: string, email: string) {
@@ -167,5 +197,20 @@ export class AuthService {
     await this.usersService.clearPasswordResetOtp(user._id.toString());
 
     return { message: 'Đặt lại mật khẩu thành công! Bạn có thể đăng nhập.' };
+  }
+
+  async getProfile(userId: string) {
+    const user = await this.usersService.findById(userId);
+    if (!user) {
+      throw new UnauthorizedException('Không tìm thấy người dùng');
+    }
+    return {
+      _id: user._id.toString(),
+      name: user.name,
+      email: user.email,
+      profileImage: user.profileImage,
+      isEmailVerified: user.isEmailVerified,
+      createdAt: user.createdAt,
+    };
   }
 }

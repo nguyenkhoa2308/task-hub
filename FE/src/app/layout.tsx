@@ -4,6 +4,7 @@ import "./globals.css";
 import { cn } from "@/lib/utils";
 import QueryProvider from "@/providers/query-provider";
 import StoreProvider from "@/providers/store-provider";
+import AuthInitializer from "@/providers/auth-initializer";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -24,7 +25,9 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <StoreProvider>
-          <QueryProvider>{children}</QueryProvider>
+          <QueryProvider>
+            <AuthInitializer>{children}</AuthInitializer>
+          </QueryProvider>
         </StoreProvider>
       </body>
     </html>

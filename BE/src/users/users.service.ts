@@ -16,6 +16,10 @@ export class UsersService {
     return this.userModel.findById(id).exec();
   }
 
+  async findByIdWithRefreshToken(id: string) {
+    return this.userModel.findById(id).select('+refreshToken').exec();
+  }
+
   async findByEmailAndVerifyOtp(email: string, otp: string) {
     return this.userModel
       .findOne({ email, emailVerifyOtp: otp })

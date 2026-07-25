@@ -4,7 +4,7 @@ export interface User {
   email: string;
   profileImage?: string;
   isEmailVerified?: boolean;
-  createAt: Date;
+  createdAt: Date;
 }
 
 export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'DONE';

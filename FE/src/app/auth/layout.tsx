@@ -1,22 +1,26 @@
-"use client"
+"use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useAppSelector } from "@/lib/redux/hooks";
-import { redirect } from "next/navigation";
-
+import { Loading } from "@/components/ui/loading";
 
 export default function AuthLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const router = useRouter();
   const { isLoading, isAuthenticated } = useAppSelector((state) => state.auth);
 
-  if (isLoading) {
-    return <div>Đang tải...</div>;
-  }
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      router.replace("/dashboard");
+    }
+  }, [isLoading, isAuthenticated, router]);
 
-  if (isAuthenticated) {
-    return redirect('/');
+  if (isLoading || isAuthenticated) {
+    return <Loading text="Đang tải..." />;
   }
 
   return (
