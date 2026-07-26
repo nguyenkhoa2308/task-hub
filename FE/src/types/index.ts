@@ -7,7 +7,21 @@ export interface User {
   createdAt: Date;
 }
 
-export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'DONE';
+export interface WorkSpace {
+  _id: string;
+  name: string;
+  description?: string;
+  owner: User | string;
+  color: string;
+  member: {
+    user: User;
+    role: "admin" | "member" | "viewer" | "owner";
+  };
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export type TaskStatus = "TODO" | "IN_PROGRESS" | "DONE";
 
 export interface Task {
   id: string;
