@@ -4,7 +4,7 @@ import { User, AuthState } from '@/types';
 const initialState: AuthState = {
   user: null,
   isAuthenticated: false,
-  isLoading: false,
+  isLoading: true,
 };
 
 

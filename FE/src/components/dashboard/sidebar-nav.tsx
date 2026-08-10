@@ -32,23 +32,25 @@ export default function SidebarNav({
     <nav className={cn("flex flex-col gap-y-2", className)} {...props}>
       {items.map((el) => {
         const Icon = el.icon;
-        const isActive = pathname === el.href;
+        const isActive = pathname === el.href || pathname.startsWith(el.href + "/");
 
         const handleClick = () => {
           if (el.href === "/workspaces") {
             router.push(el.href);
           } else if (currentWorkspace && currentWorkspace._id) {
             router.push(`${el.href}?workspaceId=${currentWorkspace._id}`);
+          } else {
+            router.push(el.href);
           }
         };
 
         return (
           <Button
             key={el.href}
-            variant={isActive ? "outline" : "ghost"}
+            variant="ghost"
             className={cn(
-              "justify-start hover:bg-blue-800/30 hover:text-blue-700 py-5",
-              isActive && "bg-blue-800/20 text-blue-600 font-medium",
+              "justify-start hover:bg-blue-800/30 hover:text-blue-700 py-5 active:scale-97 transition-all font-bold",
+              isActive && "bg-blue-800/20 text-blue-600",
             )}
             onClick={handleClick}
           >

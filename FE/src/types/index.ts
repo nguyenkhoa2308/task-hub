@@ -7,16 +7,29 @@ export interface User {
   createdAt: Date;
 }
 
+export interface Member {
+  user: User;
+  role: "admin" | "member" | "viewer" | "owner";
+  joinedAt?: Date;
+}
+
 export interface WorkSpace {
   _id: string;
   name: string;
   description?: string;
   owner: User | string;
   color: string;
-  member: {
-    user: User;
-    role: "admin" | "member" | "viewer" | "owner";
-  };
+  members?: Member[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface Project {
+  _id: string;
+  name: string;
+  description?: string;
+  workspace: string;
+  members?: Member[];
   createdAt: Date;
   updatedAt: Date;
 }

@@ -34,3 +34,20 @@ export const resetPasswordSchema = z
     path: ["confirmPassword"],
     message: "Mật khẩu xác nhận không khớp",
   });
+
+
+export const workspaceSchema = z.object({
+  name: z.string().min(3, "Tên phải có ít nhất 3 ký tự"),
+  color: z.string().min(3, "Màu sắc phải có ít nhất 3 ký tự"),
+  description: z.string().optional(),
+})
+
+export const projectSchema = z.object({
+  name: z.string().min(3, "Tên dự án phải có ít nhất 3 ký tự"),
+  description: z.string().optional(),
+})
+
+export const inviteMemberSchema = z.object({
+  email: z.string().email("Email không hợp lệ"),
+  role: z.enum(["admin", "member", "viewer"]),
+})

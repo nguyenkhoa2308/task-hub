@@ -93,7 +93,7 @@ export default function DashboardSidebar({
           {!isCollapsed && (
             <div className="flex items-center gap-2">
               <Wrench className="size-6 text-blue-600" />
-              <span className="font-medium text-lg hidden md:block">
+              <span className="font-bold text-lg hidden md:block">
                 TaskHub
               </span>
             </div>
@@ -129,7 +129,7 @@ export default function DashboardSidebar({
           variant={"ghost"}
           //   size={isCollapsed ? "icon" : "default"}
           onClick={handleLogout}
-          className="py-5 text-red-500 hover:text-red-700 hover:bg-red-800/20 w-full justify-start"
+          className="py-5 text-red-500 hover:text-red-700 hover:bg-red-800/20 w-full justify-start font-bold"
         >
           <LogOut className={cn("size-5 ml-1", isCollapsed ? "" : "")} />
           {isCollapsed ? (
