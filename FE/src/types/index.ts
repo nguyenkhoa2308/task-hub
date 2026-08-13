@@ -7,6 +7,21 @@ export interface User {
   createdAt: Date;
 }
 
+export enum ProjectStatus {
+  PLANNING = "PLANNING",
+  IN_PROGRESS = "IN_PROGRESS",
+  COMPLETED = "COMPLETED",
+  ON_HOLD = "ON_HOLD",
+  CANCELLED = "CANCELLED",
+}
+
+export interface MemberProps {
+  _id?: string;
+  user: User;
+  role: string;
+  joinedAt?: Date;
+}
+
 export interface Member {
   user: User;
   role: "admin" | "member" | "viewer" | "owner";
@@ -19,17 +34,23 @@ export interface WorkSpace {
   description?: string;
   owner: User | string;
   color: string;
-  members?: Member[];
+  members?: Member[] | MemberProps[];
+  projects?: Project[];
   createdAt: Date;
   updatedAt: Date;
 }
 
 export interface Project {
   _id: string;
-  name: string;
+  name?: string;
+  title?: string;
   description?: string;
+  status?: ProjectStatus | string;
+  startDate?: string;
+  dueDate?: string;
+  tags?: string;
   workspace: string;
-  members?: Member[];
+  members?: Member[] | MemberProps[];
   createdAt: Date;
   updatedAt: Date;
 }

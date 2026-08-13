@@ -20,7 +20,7 @@ export const useGetWorkspaceById = (workspaceId: string) => {
     return useQuery({
         queryKey: ["workspace", workspaceId],
         queryFn: async () =>
-            getData<{ workspace: WorkSpace; projects: Project[] }>(
+            getData<WorkSpace>(
                 `/workspaces/${workspaceId}`
             ),
         enabled: !!workspaceId,

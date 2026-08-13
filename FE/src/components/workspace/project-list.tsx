@@ -70,7 +70,7 @@ export function ProjectList({ workspaceId, projects, onCreateProject }: ProjectL
                                         <FolderKanban className="h-4 w-4 text-white" />
                                     </div>
                                     <CardTitle className="text-base font-bold text-slate-800 truncate group-hover:text-blue-600 transition-colors">
-                                        {project.name}
+                                        {project.title || project.name}
                                     </CardTitle>
                                 </div>
                             </CardHeader>

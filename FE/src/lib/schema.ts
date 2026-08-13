@@ -43,8 +43,20 @@ export const workspaceSchema = z.object({
 })
 
 export const projectSchema = z.object({
-  name: z.string().min(3, "Tên dự án phải có ít nhất 3 ký tự"),
+  title: z.string().min(3, "Tên dự án phải có ít nhất 3 ký tự"),
   description: z.string().optional(),
+  status: z.enum(["PLANNING", "IN_PROGRESS", "COMPLETED", "ON_HOLD", "CANCELLED"]),
+  startDate: z.string().optional(),
+  dueDate: z.string().optional(),
+  tags: z.string().optional(),
+  members: z
+    .array(
+      z.object({
+        user: z.string(),
+        role: z.enum(["manager", "contributor", "viewer"]),
+      })
+    )
+    .optional(),
 })
 
 export const inviteMemberSchema = z.object({
