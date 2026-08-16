@@ -13,6 +13,8 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { APP_GUARD } from '@nestjs/core';
 import { WorkspacesModule } from './workspaces/workspaces.module';
+import { ProjectsModule } from './projects/projects.module';
+import { TasksModule } from './tasks/tasks.module';
 
 @Module({
   imports: [
@@ -26,21 +28,10 @@ import { WorkspacesModule } from './workspaces/workspaces.module';
         // Create a bot detection rule
         detectBot({
           mode: "LIVE", // Blocks requests. Use "DRY_RUN" to log only
-          // Block all bots except the following
           allow: [
             "CATEGORY:SEARCH_ENGINE", // Google, Bing, etc
-            // Uncomment to allow these other common bot categories
-            // See the full list at https://arcjet.com/bot-list
-            //"CATEGORY:MONITOR", // Uptime monitoring services
-            //"CATEGORY:PREVIEW", // Link previews e.g. Slack, Discord
           ],
         }),
-        // tokenBucket({
-        //   mode: "LIVE", // will block requests. Use "DRY_RUN" to log only
-        //   refillRate: 5, // refill 5 tokens per interval
-        //   interval: 10, // refill every 10 seconds
-        //   capacity: 10, // bucket maximum capacity of 10 tokens
-        // }),
       ]
     }),
     MongooseModule.forRoot(
@@ -49,6 +40,8 @@ import { WorkspacesModule } from './workspaces/workspaces.module';
     AuthModule,
     UsersModule,
     WorkspacesModule,
+    ProjectsModule,
+    TasksModule,
   ],
   controllers: [AppController],
   providers: [AppService, {

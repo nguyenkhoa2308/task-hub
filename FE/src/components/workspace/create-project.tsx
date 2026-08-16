@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { projectSchema } from "@/lib/schema";
 import { ProjectStatus, type MemberProps } from "@/types";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -27,6 +28,7 @@ import { useCreateProject } from "@/hooks/use-project";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import { DatePicker } from "../ui/date-picker";
 
 interface CreateProjectDialogProps {
   isOpen: boolean;
@@ -74,6 +76,28 @@ export const CreateProjectDialog = ({
   });
   const { mutate, isPending } = useCreateProject();
 
+  // Tự động reset form sạch vẽ mỗi khi đóng Popup
+  useEffect(() => {
+    if (!isOpen) {
+      form.reset({
+        title: "",
+        description: "",
+        status: ProjectStatus.PLANNING,
+        startDate: "",
+        dueDate: "",
+        members: [],
+        tags: "",
+      });
+    }
+  }, [isOpen, form]);
+
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      form.reset();
+    }
+    onOpenChange(open);
+  };
+
   const onSubmit = (values: CreateProjectFormData) => {
     if (!workspaceId) return;
 
@@ -99,15 +123,16 @@ export const CreateProjectDialog = ({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent 
-        className="sm:max-w-[560px] max-h-[88vh] overflow-y-auto p-6"
+        className="sm:max-w-[560px] p-6"
         onInteractOutside={(e) => {
           const target = e.target as HTMLElement;
           if (
             target.closest('[data-slot="select-content"]') || 
             target.closest('[role="option"]') ||
-            target.closest('[data-slot="select-trigger"]')
+            target.closest('[data-slot="select-trigger"]') ||
+            target.closest('[data-slot="date-picker-popover"]')
           ) {
             e.preventDefault();
           }
@@ -162,7 +187,7 @@ export const CreateProjectDialog = ({
                       id={field.name}
                       placeholder="Nhập mô tả chi tiết dự án..."
                       rows={3}
-                      className="rounded-lg"
+                      className="rounded-lg max-h-28 overflow-y-auto resize-none [field-sizing:fixed]"
                     />
                     {fieldState.invalid && (
                       <FieldError errors={[fieldState.error]} className="font-semibold mt-1" />
@@ -209,11 +234,10 @@ export const CreateProjectDialog = ({
                   <Field data-invalid={fieldState.invalid}>
                     <FieldContent>
                       <FieldLabel htmlFor={field.name} className="font-semibold text-slate-700 mb-1.5">Ngày bắt đầu</FieldLabel>
-                      <Input
-                        {...field}
-                        type="date"
-                        id={field.name}
-                        className="h-10 rounded-lg"
+                      <DatePicker
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="Chọn ngày bắt đầu"
                       />
                       {fieldState.invalid && (
                         <FieldError errors={[fieldState.error]} className="font-semibold mt-1" />
@@ -230,11 +254,10 @@ export const CreateProjectDialog = ({
                   <Field data-invalid={fieldState.invalid}>
                     <FieldContent>
                       <FieldLabel htmlFor={field.name} className="font-semibold text-slate-700 mb-1.5">Hạn hoàn thành</FieldLabel>
-                      <Input
-                        {...field}
-                        type="date"
-                        id={field.name}
-                        className="h-10 rounded-lg"
+                      <DatePicker
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="Chọn hạn hoàn thành"
                       />
                       {fieldState.invalid && (
                         <FieldError errors={[fieldState.error]} className="font-semibold mt-1" />

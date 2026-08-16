@@ -37,7 +37,10 @@ export class WorkspacesService {
   }
 
   async getWorkspaceById(workspaceId: string) {
-    const workspace = await this.workspaceModel.findById(workspaceId).populate('members.user', 'name email profileImage');
+    const workspace = await this.workspaceModel
+      .findById(workspaceId)
+      .populate('members.user', 'name email profileImage')
+      .populate('projects');
     if (!workspace) {
       throw new NotFoundException("Không tìm thấy workspace")
     }
@@ -45,7 +48,7 @@ export class WorkspacesService {
   }
 
   async updateWorkspace(workspaceId: string, updateWorkspaceDto: UpdateWorkspaceDto) {
-    const workspace = await this.workspaceModel.findByIdAndUpdate(workspaceId, updateWorkspaceDto, { new: true });
+    const workspace = await this.workspaceModel.findByIdAndUpdate(workspaceId, updateWorkspaceDto, { returnDocument: 'after' });
     return workspace;
   }
 

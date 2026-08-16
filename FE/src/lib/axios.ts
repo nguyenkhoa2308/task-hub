@@ -81,9 +81,13 @@ const updateData = async <T>(url: string, data?: unknown): Promise<T> => {
   const response = await api.put(url, data);
   return response.data;
 };
+const patchData = async <T>(url: string, data?: unknown): Promise<T> => {
+  const response = await api.patch(url, data);
+  return response.data;
+};
 const deleteData = async <T>(url: string): Promise<T> => {
   const response = await api.delete(url);
   return response.data;
 };
 
-export { postData, getData, updateData, deleteData };
+export { postData, getData, updateData, patchData, deleteData };
