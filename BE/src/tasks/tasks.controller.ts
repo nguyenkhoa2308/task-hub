@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Req, Query, UseGuards } from '@nestjs/common';
 import { TasksService } from './tasks.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
@@ -16,14 +16,33 @@ export class TasksController {
   }
 
   @Get('me')
-  findMyTasks(@Req() req: any) {
+  findMyTasks(
+    @Req() req: any,
+    @Query('status') status?: string,
+    @Query('priority') priority?: string,
+    @Query('workspaceId') workspaceId?: string,
+    @Query('search') search?: string,
+    @Query('sortBy') sortBy?: string,
+    @Query('isArchived') isArchived?: string,
+  ) {
     const userId = req.user.userId;
-    return this.tasksService.getMyTasks(userId);
+    return this.tasksService.getMyTasks(userId, {
+      status,
+      priority,
+      workspaceId,
+      search,
+      sortBy,
+      isArchived: isArchived === 'true' ? true : isArchived === 'false' ? false : undefined,
+    });
   }
 
   @Get('project/:projectId')
-  findAllByProject(@Param('projectId') projectId: string) {
-    return this.tasksService.getTasksByProject(projectId);
+  findAllByProject(
+    @Param('projectId') projectId: string,
+    @Query('sortBy') sortBy?: string,
+    @Query('status') status?: string,
+  ) {
+    return this.tasksService.getTasksByProject(projectId, { sortBy, status });
   }
 
   @Get(':id')

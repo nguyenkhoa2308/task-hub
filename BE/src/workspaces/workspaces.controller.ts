@@ -27,4 +27,11 @@ export class WorkspacesController {
   findOne(@Param('id') id: string) {
     return this.workspacesService.getWorkspaceById(id);
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/join')
+  joinWorkspace(@Param('id') id: string, @Req() req: any) {
+    const userId = req.user.userId;
+    return this.workspacesService.joinWorkspace(id, userId);
+  }
 }

@@ -73,8 +73,8 @@ const postData = async <T>(url: string, data?: unknown): Promise<T> => {
   const response = await api.post(url, data);
   return response.data;
 };
-const getData = async <T>(url: string): Promise<T> => {
-  const response = await api.get(url);
+const getData = async <T>(url: string, config?: any): Promise<T> => {
+  const response = await api.get(url, config);
   return response.data;
 };
 const updateData = async <T>(url: string, data?: unknown): Promise<T> => {

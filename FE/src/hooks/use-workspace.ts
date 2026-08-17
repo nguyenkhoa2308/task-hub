@@ -32,4 +32,11 @@ export const useInviteMember = (workspaceId: string) => {
         mutationFn: async (data: { email: string; role: string }) =>
             postData(`/members/invite/workspace/${workspaceId}`, data),
     });
+};
+
+export const useJoinWorkspaceByLink = () => {
+    return useMutation({
+        mutationFn: async (workspaceId: string) =>
+            postData(`/workspaces/${workspaceId}/join`, {}),
+    });
 };

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { Plus, GripVertical, Clock, Trash2, ArrowUpDown, Filter, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -14,6 +14,7 @@ import {
 } from "@/hooks/use-task";
 import { CreateTaskDialog } from "@/components/task/create-task-dialog";
 import { TaskDetailModal } from "@/components/task/task-detail-modal";
+import { formatRelativeDays } from "@/lib/utils";
 
 export type TaskColumnStatus = "todo" | "in_progress" | "done";
 export type SortOption = "deadline_priority" | "priority_only" | "deadline_only" | "title_az";
@@ -93,66 +94,51 @@ const PRIORITY_SCORE: Record<string, number> = {
 
 export function KanbanBoard({ projectId, projectMembers = [] }: KanbanBoardProps) {
   const queryClient = useQueryClient();
-  const { data: remoteTasks, refetch } = useGetTasksByProject(projectId || "");
+  const { data: remoteTasks } = useGetTasksByProject(projectId || "", { sortBy: "deadline_priority" });
   const { mutate: updateTaskMutate } = useUpdateTask();
   const { mutate: deleteTaskMutate } = useDeleteTask();
-
-  const [tasks, setTasks] = useState<KanbanTask[]>([]);
-  const [sortBy, setSortBy] = useState<SortOption>("deadline_priority");
 
   const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<TaskColumnStatus | null>(null);
 
+  // Pending status overrides — prevent flicker when sortBy changes mid-flight
+  const [pendingStatusMap, setPendingStatusMap] = useState<Record<string, string>>({});
+
   // Modal States
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedDefaultStatus, setSelectedDefaultStatus] = useState("To Do");
-
   const [selectedTaskForDetail, setSelectedTaskForDetail] = useState<KanbanTask | null>(null);
 
-  useEffect(() => {
-    if (Array.isArray(remoteTasks)) {
-      setTasks(remoteTasks);
-    }
-  }, [remoteTasks]);
-
-  // Sort Tasks Logic
-  const sortedTasks = useMemo(() => {
-    return [...tasks].sort((a, b) => {
-      if (sortBy === "deadline_priority") {
-        // Option 3: Deadline gần/quá hạn lên đầu -> Rảnh -> xếp theo Priority
-        const aDate = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
-        const bDate = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
-
-        if (aDate !== bDate) return aDate - bDate;
-
-        const aPri = PRIORITY_SCORE[a.priority || "Medium"] || 2;
-        const bPri = PRIORITY_SCORE[b.priority || "Medium"] || 2;
-        return bPri - aPri;
+  // Derive display tasks: apply pending overrides, auto-clear when server catches up
+  const tasks = useMemo(() => {
+    if (!Array.isArray(remoteTasks)) return [];
+    const toClean: string[] = [];
+    const result = remoteTasks.map((t: any) => {
+      const taskId = t._id || t.id;
+      const pending = pendingStatusMap[taskId];
+      if (pending) {
+        if (t.status === pending) {
+          toClean.push(taskId);
+          return t;
+        }
+        return { ...t, status: pending };
       }
-
-      if (sortBy === "priority_only") {
-        const aPri = PRIORITY_SCORE[a.priority || "Medium"] || 2;
-        const bPri = PRIORITY_SCORE[b.priority || "Medium"] || 2;
-        if (aPri !== bPri) return bPri - aPri;
-
-        const aDate = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
-        const bDate = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
-        return aDate - bDate;
-      }
-
-      if (sortBy === "deadline_only") {
-        const aDate = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
-        const bDate = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
-        return aDate - bDate;
-      }
-
-      if (sortBy === "title_az") {
-        return a.title.localeCompare(b.title);
-      }
-
-      return 0;
+      return t;
     });
-  }, [tasks, sortBy]);
+    if (toClean.length > 0) {
+      Promise.resolve().then(() => {
+        setPendingStatusMap((prev) => {
+          const next = { ...prev };
+          toClean.forEach((id) => delete next[id]);
+          return next;
+        });
+      });
+    }
+    return result;
+  }, [remoteTasks, pendingStatusMap]);
+
+  // Tasks directly from Backend (sorted by BE query)
+  const sortedTasks = useMemo(() => tasks, [tasks]);
 
   const handleDragStart = (e: React.DragEvent, taskId: string) => {
     e.dataTransfer.setData("text/plain", taskId);
@@ -184,23 +170,23 @@ export function KanbanBoard({ projectId, projectMembers = [] }: KanbanBoardProps
     const colConfig = COLUMNS.find((c) => c.id === targetColumnId);
     const newStatusValue = colConfig?.statusValue || "To Do";
 
-    setTasks((prev) =>
-      prev.map((t) =>
-        t._id === taskId || t.id === taskId ? { ...t, status: newStatusValue } : t
-      )
-    );
+    // Immediately override display status to prevent flicker when sort refetches
+    setPendingStatusMap((prev) => ({ ...prev, [taskId]: newStatusValue }));
 
     if (taskId && !taskId.startsWith("temp-")) {
       updateTaskMutate(
         { id: taskId, data: { status: newStatusValue } },
         {
           onSuccess: () => {
-            refetch();
+            // Don't clear pending here — auto-cleared in tasks memo when server data arrives
+            queryClient.invalidateQueries({ queryKey: ["tasks", projectId] });
+            queryClient.invalidateQueries({ queryKey: ["my-tasks"] });
             queryClient.invalidateQueries({ queryKey: ["projects"] });
             queryClient.invalidateQueries({ queryKey: ["project", projectId] });
           },
           onError: () => {
-            refetch();
+            setPendingStatusMap((prev) => { const next = { ...prev }; delete next[taskId]; return next; });
+            queryClient.invalidateQueries({ queryKey: ["tasks", projectId] });
             toast.error("Không thể cập nhật trạng thái công việc");
           },
         }
@@ -223,7 +209,9 @@ export function KanbanBoard({ projectId, projectMembers = [] }: KanbanBoardProps
       deleteTaskMutate(taskId, {
         onSuccess: () => {
           toast.success("Đã xóa công việc");
-          refetch();
+          queryClient.invalidateQueries({ queryKey: ["tasks", projectId] });
+          queryClient.invalidateQueries({ queryKey: ["projects"] });
+          queryClient.invalidateQueries({ queryKey: ["project", projectId] });
         },
         onError: () => {
           toast.error("Không thể xóa công việc");
@@ -234,40 +222,19 @@ export function KanbanBoard({ projectId, projectMembers = [] }: KanbanBoardProps
 
   return (
     <div className="space-y-4">
-      {/* Kanban Header Actions & Sort Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-white border border-slate-200/80 rounded-2xl p-3 shadow-xs">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-bold text-slate-500 flex items-center gap-1.5 pl-1">
-            <ArrowUpDown className="size-4 text-blue-600" /> Sắp xếp:
-          </span>
-          <div className="w-56">
-            <Select value={sortBy} onValueChange={(val: any) => setSortBy(val)}>
-              <SelectTrigger className="h-8 text-[13px] font-semibold rounded-xl bg-slate-50">
-                <SelectValue placeholder="Chọn kiểu sắp xếp" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="deadline_priority">Hạn chót + Độ ưu tiên</SelectItem>
-                <SelectItem value="priority_only">Độ ưu tiên trước</SelectItem>
-                <SelectItem value="deadline_only">Hạn chót gần nhất</SelectItem>
-                <SelectItem value="title_az">Tên A - Z</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-slate-400 hidden sm:inline">
-            Click vào task để xem chi tiết & chỉnh sửa
-          </span>
-          <Button
-            onClick={() => handleOpenCreateModal("To Do")}
-            size="sm"
-            className="gap-1.5 font-bold cursor-pointer shadow-xs hover:shadow-md transition-all rounded-xl h-8 text-xs"
-          >
-            <Plus className="size-4" />
-            Thêm công việc
-          </Button>
-        </div>
+      {/* Kanban Header */}
+      <div className="flex items-center justify-between gap-3 bg-white border border-slate-200/80 rounded-2xl px-4 py-2.5 shadow-xs">
+        <span className="text-xs text-slate-400">
+          Click vào task để xem chi tiết & chỉnh sửa
+        </span>
+        <Button
+          onClick={() => handleOpenCreateModal("To Do")}
+          size="sm"
+          className="gap-1.5 font-bold cursor-pointer shadow-xs hover:shadow-md transition-all rounded-xl h-8 text-xs"
+        >
+          <Plus className="size-4" />
+          Thêm công việc
+        </Button>
       </div>
 
       {/* Board Columns */}
@@ -331,7 +298,8 @@ export function KanbanBoard({ projectId, projectMembers = [] }: KanbanBoardProps
                     const isBeingDragged = draggingTaskId === taskId;
 
                     // Check if overdue
-                    const isOverdue = task.dueDate && new Date(task.dueDate).getTime() < Date.now() && task.status !== "Done";
+                    const isDone = task.status === "Done" || task.status === "done" || task.status === "Completed";
+                    const isOverdue = task.dueDate && new Date(task.dueDate).getTime() < Date.now() && !isDone;
 
                     return (
                       <div
@@ -339,27 +307,30 @@ export function KanbanBoard({ projectId, projectMembers = [] }: KanbanBoardProps
                         draggable
                         onDragStart={(e) => handleDragStart(e, taskId)}
                         onClick={() => setSelectedTaskForDetail(task)}
-                        className={`group bg-white border border-slate-200/80 rounded-xl p-3.5 shadow-xs hover:shadow-md hover:border-blue-400 transition-all duration-200 cursor-pointer relative ${isBeingDragged
-                          ? "opacity-40 scale-95 border-dashed border-blue-400"
-                          : ""
+                        className={`group bg-white border rounded-xl p-3.5 shadow-2xs hover:shadow-md transition-all duration-200 cursor-pointer relative ${isOverdue
+                          ? "border-rose-400 ring-1 ring-rose-400/50 border-2"
+                          : "border-slate-200/80 hover:border-slate-300"
+                          } ${isBeingDragged
+                            ? "opacity-40 scale-95 border-dashed border-blue-400"
+                            : ""
                           }`}
                       >
                         {/* Priority Badge & Actions */}
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-1.5">
                             <span
-                              className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md uppercase tracking-wider border ${task.priority === "High"
-                                ? "bg-rose-50 text-rose-700 border-rose-200"
+                              className={`text-[10px] font-semibold px-2 py-0.5 rounded-md uppercase tracking-wider ${task.priority === "High"
+                                ? "bg-rose-50 text-rose-700 border border-rose-200/80"
                                 : task.priority === "Low"
-                                  ? "bg-slate-100 text-slate-600 border-slate-200"
-                                  : "bg-blue-50 text-blue-700 border-blue-200"
+                                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200/80"
+                                  : "bg-amber-50 text-amber-700 border border-amber-200/80"
                                 }`}
                             >
-                              {task.priority || "Medium"}
+                              {task.priority === "High" ? "Cao" : task.priority === "Low" ? "Thấp" : "Trung bình"}
                             </span>
 
                             {isOverdue && (
-                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-rose-500 text-white animate-pulse">
+                              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-rose-50 text-rose-700 border border-rose-200/80">
                                 Quá hạn
                               </span>
                             )}
@@ -389,11 +360,14 @@ export function KanbanBoard({ projectId, projectMembers = [] }: KanbanBoardProps
                         )}
 
                         {/* Task Footer Meta */}
-                        <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
+                        <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
                           {task.dueDate ? (
-                            <span className={`flex items-center gap-1 font-medium ${isOverdue ? "text-rose-600 font-bold" : "text-slate-500"}`}>
-                              <Clock className="size-3" />
-                              {new Date(task.dueDate).toLocaleDateString("vi-VN")}
+                            <span
+                              className={`flex items-center gap-1 font-medium ${isOverdue ? "text-rose-600 font-semibold" : "text-slate-500"
+                                }`}
+                            >
+                              <Clock className={`size-3 ${isOverdue ? "text-rose-500" : "text-slate-400"}`} />
+                              {formatRelativeDays(task.dueDate)}
                             </span>
                           ) : (
                             <span />
@@ -443,7 +417,7 @@ export function KanbanBoard({ projectId, projectMembers = [] }: KanbanBoardProps
           isOpen={!!selectedTaskForDetail}
           onClose={() => setSelectedTaskForDetail(null)}
           projectMembers={projectMembers}
-          refetchTasks={refetch}
+          refetchTasks={() => queryClient.invalidateQueries({ queryKey: ["tasks", projectId] })}
         />
       )}
     </div>

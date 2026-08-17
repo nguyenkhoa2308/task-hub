@@ -90,6 +90,8 @@ export function TaskDetailModal({
       {
         onSuccess: () => {
           toast.success("Đã cập nhật công việc");
+          queryClient.invalidateQueries({ queryKey: ["tasks"] });
+          queryClient.invalidateQueries({ queryKey: ["my-tasks"] });
           queryClient.invalidateQueries({ queryKey: ["projects"] });
           queryClient.invalidateQueries({ queryKey: ["project"] });
           if (refetchTasks) refetchTasks();
@@ -106,6 +108,8 @@ export function TaskDetailModal({
       deleteTask(taskId, {
         onSuccess: () => {
           toast.success("Đã xóa công việc");
+          queryClient.invalidateQueries({ queryKey: ["tasks"] });
+          queryClient.invalidateQueries({ queryKey: ["my-tasks"] });
           queryClient.invalidateQueries({ queryKey: ["projects"] });
           queryClient.invalidateQueries({ queryKey: ["project"] });
           if (refetchTasks) refetchTasks();

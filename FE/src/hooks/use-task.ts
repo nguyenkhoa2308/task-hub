@@ -18,18 +18,31 @@ export const useCreateTask = () => {
   });
 };
 
-export const useGetTasksByProject = (projectId: string) => {
+export const useGetTasksByProject = (
+  projectId: string,
+  params?: { sortBy?: string; status?: string },
+) => {
   return useQuery({
-    queryKey: ["tasks", projectId],
-    queryFn: async () => getData(`/tasks/project/${projectId}`),
+    queryKey: ["tasks", projectId, params],
+    queryFn: async () => getData(`/tasks/project/${projectId}`, { params }),
     enabled: !!projectId,
   });
 };
 
-export const useGetMyTasks = () => {
+export interface GetMyTasksParams {
+  status?: string;
+  priority?: string;
+  workspaceId?: string;
+  search?: string;
+  sortBy?: string;
+  isArchived?: boolean;
+}
+
+export const useGetMyTasks = (params?: GetMyTasksParams) => {
   return useQuery({
-    queryKey: ["my-tasks"],
-    queryFn: async () => getData("/tasks/me"),
+    queryKey: ["my-tasks", params],
+    queryFn: async () => getData("/tasks/me", { params }),
+    placeholderData: (prev: any) => prev,
   });
 };
 

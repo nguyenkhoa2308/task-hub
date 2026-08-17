@@ -56,4 +56,28 @@ export class WorkspacesService {
     const workspace = await this.workspaceModel.findByIdAndDelete(workspaceId);
     return workspace;
   }
+
+  async joinWorkspace(workspaceId: string, userId: string) {
+    const workspace = await this.workspaceModel.findById(workspaceId);
+    if (!workspace) {
+      throw new NotFoundException("Workspace không tồn tại");
+    }
+
+    const isMember = workspace.members.some(
+      (m: any) => m.user.toString() === userId.toString()
+    );
+
+    if (isMember) {
+      return { message: "Bạn đã là thành viên của workspace này", workspace };
+    }
+
+    workspace.members.push({
+      user: userId as any,
+      role: 'member',
+      joinedAt: new Date(),
+    });
+
+    await workspace.save();
+    return { message: "Tham gia workspace thành công", workspace };
+  }
 }
