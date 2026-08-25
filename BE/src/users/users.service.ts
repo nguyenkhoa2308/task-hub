@@ -1,12 +1,26 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleInit, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 import { User, UserDocument } from './schemas/user.schema';
 
 @Injectable()
-export class UsersService {
+export class UsersService implements OnModuleInit {
   constructor(@InjectModel(User.name) private userModel: Model<UserDocument>) { }
+
+  async onModuleInit() {
+    try {
+      const usersWithoutAvatar = await this.userModel.find({
+        $or: [{ profileImage: { $exists: false } }, { profileImage: null }, { profileImage: '' }],
+      });
+      for (const user of usersWithoutAvatar) {
+        const avatar = `https://api.dicebear.com/10.x/clay/svg?seed=${encodeURIComponent(user.name || user.email)}`;
+        await this.userModel.findByIdAndUpdate(user._id, { profileImage: avatar });
+      }
+    } catch (e) {
+      // Ignore initial connection errors if DB is starting up
+    }
+  }
 
   async findByEmail(email: string) {
     return this.userModel.findOne({ email }).select('+password').exec();
@@ -28,8 +42,10 @@ export class UsersService {
   }
 
   async create(data: { name: string; email: string; password: string }) {
+    const defaultAvatar = `https://api.dicebear.com/10.x/clay/svg?seed=${encodeURIComponent(data.name || data.email)}`;
     const user = new this.userModel({
       ...data,
+      profileImage: defaultAvatar,
       expireAt: new Date(),
     });
     return user.save();
@@ -93,6 +109,14 @@ export class UsersService {
     await this.userModel.findByIdAndUpdate(userId, {
       password: hashedPassword,
     });
+  }
+
+  async updateProfile(userId: string, data: { name?: string; profileImage?: string }) {
+    const user = await this.userModel.findByIdAndUpdate(userId, data, { returnDocument: 'after' });
+    if (!user) {
+      throw new BadRequestException('Không tìm thấy người dùng');
+    }
+    return user;
   }
 }
 

@@ -19,12 +19,14 @@ export interface MemberProps {
   _id?: string;
   user: User;
   role: string;
+  status?: "active" | "pending";
   joinedAt?: Date;
 }
 
 export interface Member {
   user: User;
   role: "admin" | "member" | "viewer" | "owner";
+  status?: "active" | "pending";
   joinedAt?: Date;
 }
 
@@ -49,6 +51,7 @@ export interface Project {
   startDate?: string;
   dueDate?: string;
   tags?: string;
+  isPrivate?: boolean;
   workspace: string;
   members?: Member[] | MemberProps[];
   createdAt: Date;

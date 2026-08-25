@@ -23,6 +23,7 @@ import {
 } from "../ui/select";
 import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
+import { Lock } from "lucide-react";
 import { Field, FieldContent, FieldError, FieldGroup, FieldLabel } from "../ui/field";
 import { useCreateProject } from "@/hooks/use-project";
 import { toast } from "sonner";
@@ -72,6 +73,7 @@ export const CreateProjectDialog = ({
       dueDate: "",
       members: [],
       tags: "",
+      isPrivate: false,
     },
   });
   const { mutate, isPending } = useCreateProject();
@@ -87,6 +89,7 @@ export const CreateProjectDialog = ({
         dueDate: "",
         members: [],
         tags: "",
+        isPrivate: false,
       });
     }
   }, [isOpen, form]);
@@ -268,6 +271,29 @@ export const CreateProjectDialog = ({
               />
             </div>
 
+            {/* Private Project Toggle */}
+            <Controller
+              name="isPrivate"
+              control={form.control}
+              render={({ field }) => (
+                <div className="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl">
+                  <div className="space-y-0.5 pr-2">
+                    <label htmlFor="isPrivate" className="text-xs font-bold text-slate-800 flex items-center gap-1.5 cursor-pointer">
+                      <Lock className="h-3.5 w-3.5 text-amber-600 shrink-0" /> Dự án Riêng tư (Private Project)
+                    </label>
+                    <p className="text-[11px] text-slate-500 leading-normal">
+                      Chỉ những thành viên được chọn tham gia mới có quyền xem và truy cập dự án này.
+                    </p>
+                  </div>
+                  <Checkbox
+                    id="isPrivate"
+                    checked={field.value || false}
+                    onCheckedChange={(checked) => field.onChange(!!checked)}
+                  />
+                </div>
+              )}
+            />
+
             {/* Tags */}
             <Controller
               name="tags"
@@ -354,7 +380,7 @@ export const CreateProjectDialog = ({
 
                                   <Avatar className="h-8 w-8 shrink-0">
                                     <AvatarImage src={member.user.profileImage} />
-                                    <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-bold text-xs">
+                                    <AvatarFallback className="text-xs font-semibold">
                                       {member.user.name?.charAt(0).toUpperCase()}
                                     </AvatarFallback>
                                   </Avatar>

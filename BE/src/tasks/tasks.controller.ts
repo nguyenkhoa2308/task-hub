@@ -51,12 +51,17 @@ export class TasksController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateTaskDto: UpdateTaskDto) {
-    return this.tasksService.updateTask(id, updateTaskDto);
+  update(
+    @Param('id') id: string,
+    @Body() updateTaskDto: UpdateTaskDto,
+    @Req() req: any,
+  ) {
+    return this.tasksService.updateTask(id, updateTaskDto, req.user.userId);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.tasksService.deleteTask(id);
+  remove(@Param('id') id: string, @Req() req: any) {
+    const userId = req.user.userId;
+    return this.tasksService.deleteTask(id, userId);
   }
 }

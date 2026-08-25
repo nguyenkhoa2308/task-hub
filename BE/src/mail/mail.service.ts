@@ -76,4 +76,51 @@ export class MailService {
       throw new InternalServerErrorException('Không thể gửi email đặt lại mật khẩu');
     }
   }
+
+  async sendWorkspaceInviteEmail(
+    email: string,
+    inviterName: string,
+    workspaceName: string,
+    role: string,
+    inviteLink: string,
+  ): Promise<void> {
+    const roleLabel =
+      role === 'admin'
+        ? 'Quản trị viên'
+        : role === 'viewer'
+          ? 'Người xem'
+          : 'Thành viên';
+
+    try {
+      await this.transporter.sendMail({
+        from: `"Task Hub"`,
+        to: email,
+        subject: `Bạn được mời vào workspace "${workspaceName}" — Task Hub`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h2 style="color: #4F46E5;">Lời mời tham gia Workspace 🎉</h2>
+            <p><strong>${inviterName}</strong> đã mời bạn tham gia workspace <strong>"${workspaceName}"</strong> trên Task Hub.</p>
+            <div style="text-align: center; margin: 30px 0;">
+              <div style="background-color: #EEF2FF; color: #4338CA; padding: 12px 20px; border-radius: 8px; font-size: 16px; font-weight: bold; display: inline-block;">
+                Vai trò: ${roleLabel}
+              </div>
+            </div>
+            <div style="text-align: center; margin: 20px 0;">
+              <a href="${inviteLink}" style="background-color: #4F46E5; color: white; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 14px;">
+                Truy cập Workspace
+              </a>
+            </div>
+            <p style="color: #6B7280; font-size: 14px;">
+              Nếu bạn không mong đợi email này, hãy bỏ qua.
+            </p>
+            <hr style="border: none; border-top: 1px solid #E5E7EB; margin: 20px 0;">
+            <p style="color: #9CA3AF; font-size: 12px;">Task Hub — Quản lý công việc hiệu quả</p>
+          </div>
+        `,
+      });
+    } catch (error) {
+      console.error('Mail send error:', error);
+      throw new InternalServerErrorException('Không thể gửi email mời thành viên');
+    }
+  }
 }

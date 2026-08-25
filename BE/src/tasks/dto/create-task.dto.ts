@@ -59,6 +59,10 @@ export class CreateTaskDto {
   subtasks?: any[];
 
   @IsOptional()
+  @IsArray()
+  attachments?: any[];
+
+  @IsOptional()
   @IsBoolean()
   isArchived?: boolean;
 }

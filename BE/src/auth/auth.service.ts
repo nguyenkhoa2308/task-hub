@@ -4,6 +4,7 @@ import {
   ConflictException,
   ForbiddenException,
   BadRequestException,
+  NotFoundException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
@@ -94,7 +95,7 @@ export class AuthService {
         _id: user._id.toString(),
         name: user.name,
         email: user.email,
-        profileImage: user.profileImage,
+        profileImage: user.profileImage || `https://api.dicebear.com/10.x/clay/svg?seed=${encodeURIComponent(user.name || user.email)}`,
         isEmailVerified: user.isEmailVerified,
         createdAt: user.createdAt,
       },
@@ -208,9 +209,38 @@ export class AuthService {
       _id: user._id.toString(),
       name: user.name,
       email: user.email,
+      profileImage: user.profileImage || `https://api.dicebear.com/10.x/clay/svg?seed=${encodeURIComponent(user.name || user.email)}`,
+      isEmailVerified: user.isEmailVerified,
+      createdAt: user.createdAt,
+    };
+  }
+
+  async updateProfile(userId: string, dto: { name?: string; profileImage?: string }) {
+    const user = await this.usersService.updateProfile(userId, dto);
+    return {
+      _id: user._id.toString(),
+      name: user.name,
+      email: user.email,
       profileImage: user.profileImage,
       isEmailVerified: user.isEmailVerified,
       createdAt: user.createdAt,
     };
+  }
+
+  async changePassword(userId: string, currentPass: string, newPass: string) {
+    const user = await this.usersService.findById(userId);
+    if (!user) throw new NotFoundException('Người dùng không tồn tại');
+    const userWithPass = await this.usersService.findByEmail(user.email);
+    if (!userWithPass) throw new NotFoundException('Mật khẩu không tìm thấy');
+
+    const isMatch = await bcrypt.compare(currentPass, userWithPass.password);
+    if (!isMatch) {
+      throw new BadRequestException('Mật khẩu hiện tại không chính xác');
+    }
+
+    const hashed = await bcrypt.hash(newPass, 10);
+    await this.usersService.updatePassword(userId, hashed);
+
+    return { message: 'Đổi mật khẩu thành công!' };
   }
 }

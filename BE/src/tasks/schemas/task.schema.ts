@@ -1,7 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { Document } from 'mongoose';
 
-@Schema({ _id: false })
+@Schema({ _id: true })
 export class Subtask {
   @Prop({ required: true, trim: true })
   title!: string;
@@ -15,7 +15,7 @@ export class Subtask {
 
 export const SubtaskSchema = SchemaFactory.createForClass(Subtask);
 
-@Schema({ _id: false })
+@Schema({ _id: true })
 export class Attachment {
   @Prop({ required: true })
   fileName!: string;

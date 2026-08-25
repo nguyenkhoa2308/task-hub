@@ -1,6 +1,6 @@
 "use client";
 
-import { Users, Plus, UserPlus, ArrowLeft } from "lucide-react";
+import { Users, Plus, UserPlus, ArrowLeft, UserCheck } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import WorksapceAvatar from "@/components/workspace/workspace-avatar";
@@ -12,6 +12,8 @@ interface WorkspaceHeaderProps {
     members: Member[];
     onCreateProject: () => void;
     onInviteMember: () => void;
+    onOpenPendingMembers?: () => void;
+    pendingCount?: number;
 }
 
 export function WorkspaceHeader({
@@ -19,6 +21,8 @@ export function WorkspaceHeader({
     members = [],
     onCreateProject,
     onInviteMember,
+    onOpenPendingMembers,
+    pendingCount = 0,
 }: WorkspaceHeaderProps) {
     const maxVisible = 5;
     const visibleMembers = members.slice(0, maxVisible);
@@ -59,6 +63,25 @@ export function WorkspaceHeader({
                 </div>
 
                 <div className="flex items-center gap-2">
+                    {onOpenPendingMembers && (
+                        <Button
+                            variant="outline"
+                            onClick={onOpenPendingMembers}
+                            className={`gap-2 cursor-pointer transition-all font-bold relative ${
+                                pendingCount > 0
+                                    ? "border-amber-300 bg-amber-50/80 text-amber-800 hover:bg-amber-100/80"
+                                    : "text-slate-700 hover:bg-slate-50"
+                            }`}
+                        >
+                            <UserCheck className={`h-4 w-4 ${pendingCount > 0 ? "text-amber-600" : "text-slate-500"}`} />
+                            <span>Duyệt yêu cầu</span>
+                            {pendingCount > 0 && (
+                                <span className="ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] bg-amber-600 text-white font-extrabold">
+                                    {pendingCount}
+                                </span>
+                            )}
+                        </Button>
+                    )}
                     <Button
                         variant="outline"
                         onClick={onInviteMember}
@@ -93,7 +116,7 @@ export function WorkspaceHeader({
                                 title={member.user?.name}
                             >
                                 <AvatarImage src={member.user?.profileImage} />
-                                <AvatarFallback className="text-[10px] font-bold bg-blue-100 text-blue-700">
+                                <AvatarFallback className="text-[10px] font-semibold">
                                     {member.user?.name?.charAt(0).toUpperCase() || "?"}
                                 </AvatarFallback>
                             </Avatar>

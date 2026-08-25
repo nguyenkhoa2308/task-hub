@@ -1,17 +1,69 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { Task } from './schemas/task.schema';
 import { Project } from '../projects/schemas/project.schema';
+import { Workspace } from '../workspaces/schemas/workspace.schema';
+
+import { ActivitiesService } from '../activities/activities.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class TasksService {
   constructor(
     @InjectModel(Task.name) private readonly taskModel: Model<Task>,
     @InjectModel(Project.name) private readonly projectModel: Model<Project>,
+    @InjectModel(Workspace.name) private readonly workspaceModel: Model<Workspace>,
+    private readonly activitiesService: ActivitiesService,
+    private readonly notificationsService: NotificationsService,
   ) {}
+
+  async checkTaskEditPermission(projectId: string, userId: string, task?: any) {
+    if (!userId) return;
+
+    if (task) {
+      const createdById = task.createdBy?._id?.toString() || task.createdBy?.toString();
+      const isCreator = createdById === userId.toString();
+      const isAssignee = Array.isArray(task.assignees) && task.assignees.some(
+        (a: any) => (a._id?.toString() || a.toString() || a) === userId.toString(),
+      );
+      if (isCreator || isAssignee) {
+        return;
+      }
+    }
+
+    const project = await this.projectModel.findById(projectId);
+    if (!project) {
+      throw new NotFoundException('Dự án không tồn tại');
+    }
+
+    const projectMember = project.members.find(
+      (m: any) => (m.user?._id?.toString() || m.user?.toString()) === userId.toString(),
+    );
+
+    if (projectMember) {
+      if (projectMember.role === 'viewer') {
+        throw new ForbiddenException('Tài khoản của bạn chỉ có quyền xem trong dự án này');
+      }
+      return;
+    }
+
+    const workspace = await this.workspaceModel.findById(project.workspace);
+    const wsMember = workspace?.members.find(
+      (m: any) => (m.user?._id?.toString() || m.user?.toString()) === userId.toString(),
+    );
+
+    if (!wsMember || (wsMember as any).status === 'pending') {
+      throw new ForbiddenException('Bạn không có quyền chỉnh sửa công việc trong dự án này');
+    }
+
+    const isWsAdminOrOwner = ['owner', 'admin'].includes(wsMember.role);
+    if (project.isPrivate && !isWsAdminOrOwner) {
+      throw new ForbiddenException('Dự án này là riêng tư, bạn không có quyền chỉnh sửa');
+    }
+  }
 
   async createTask(createTaskDto: CreateTaskDto, userId: string) {
     const { projectId, title, description, status, priority, assignees, dueDate, tags } = createTaskDto;
@@ -19,6 +71,8 @@ export class TasksService {
     if (!projectId) {
       throw new BadRequestException('Project ID là bắt buộc');
     }
+
+    await this.checkTaskEditPermission(projectId, userId);
 
     const project = await this.projectModel.findById(projectId);
     if (!project) {
@@ -32,6 +86,15 @@ export class TasksService {
       parsedTags = tags;
     }
 
+    // Tự động thêm Người tạo và Assignees vào Watchers (chuẩn Jira / Linear)
+    const initialWatchers = new Set<string>();
+    if (userId) initialWatchers.add(userId);
+    if (Array.isArray(assignees)) {
+      assignees.forEach((aId: string) => {
+        if (aId) initialWatchers.add(aId);
+      });
+    }
+
     const task = await this.taskModel.create({
       title,
       description,
@@ -39,6 +102,7 @@ export class TasksService {
       status: status || 'To Do',
       priority: priority || 'Medium',
       assignees: assignees || [],
+      watchers: Array.from(initialWatchers),
       dueDate: dueDate ? new Date(dueDate) : undefined,
       tags: parsedTags,
       createdBy: userId,
@@ -51,7 +115,41 @@ export class TasksService {
 
     await this.updateProjectProgress(projectId);
 
-    return task;
+    // Ghi nhật ký khởi tạo công việc
+    await this.activitiesService.logActivity({
+      user: userId,
+      action: 'created_task',
+      resourceType: 'Task',
+      resourceId: task._id.toString(),
+      details: { title: task.title, description: 'đã khởi tạo công việc này' },
+    });
+
+    // Gửi thông báo cho những người được phân công
+    if (Array.isArray(assignees) && assignees.length > 0) {
+      try {
+        for (const assigneeId of assignees) {
+          const aId = typeof assigneeId === 'string' ? assigneeId : (assigneeId as any)._id?.toString();
+          if (aId && aId !== userId) {
+            await this.notificationsService.createNotification({
+              recipient: aId,
+              sender: userId,
+              type: 'TASK_ASSIGNED',
+              title: 'Phân công công việc mới',
+              message: `đã giao công việc "${title}" cho bạn`,
+              link: `/workspaces/${project.workspace || ''}?taskId=${task._id}`,
+            });
+          }
+        }
+      } catch (e) {
+        // Ignore notification errors
+      }
+    }
+
+    return this.taskModel
+      .findById(task._id)
+      .populate('assignees', 'name email profileImage')
+      .populate('createdBy', 'name email profileImage')
+      .populate('watchers', 'name email profileImage');
   }
 
   private async updateProjectProgress(projectId: string) {
@@ -131,6 +229,7 @@ export class TasksService {
       .find(query)
       .populate('assignees', 'name email profileImage')
       .populate('createdBy', 'name email profileImage')
+      .populate('watchers', 'name email profileImage')
       .populate({
         path: 'project',
         select: 'title name workspace',
@@ -236,6 +335,7 @@ export class TasksService {
       .find(query)
       .populate('assignees', 'name email profileImage')
       .populate('createdBy', 'name email profileImage')
+      .populate('watchers', 'name email profileImage')
       .sort({ createdAt: -1 });
 
     if (options.sortBy === 'priority_only') {
@@ -279,6 +379,7 @@ export class TasksService {
       .findById(taskId)
       .populate('assignees', 'name email profileImage')
       .populate('createdBy', 'name email profileImage')
+      .populate('watchers', 'name email profileImage')
       .populate('project', 'title name');
 
     if (!task) {
@@ -288,7 +389,16 @@ export class TasksService {
     return task;
   }
 
-  async updateTask(taskId: string, updateTaskDto: UpdateTaskDto) {
+  async updateTask(taskId: string, updateTaskDto: UpdateTaskDto, userId?: string) {
+    const existingTask = await this.taskModel.findById(taskId);
+    if (!existingTask) {
+      throw new NotFoundException('Không tìm thấy công việc để cập nhật');
+    }
+
+    if (userId && existingTask.project) {
+      await this.checkTaskEditPermission(existingTask.project.toString(), userId, existingTask);
+    }
+
     const updateData: any = { ...updateTaskDto };
 
     // Tự động ghi nhận ngày hoàn thành khi chuyển trạng thái sang Done / DONE
@@ -296,13 +406,29 @@ export class TasksService {
       updateData.completedAt = new Date();
     }
 
-    if (updateTaskDto.dueDate) {
-      updateData.dueDate = new Date(updateTaskDto.dueDate);
+    if ('dueDate' in updateTaskDto) {
+      if (updateTaskDto.dueDate) {
+        const parsedDate = new Date(updateTaskDto.dueDate);
+        updateData.dueDate = isNaN(parsedDate.getTime()) ? null : parsedDate;
+      } else {
+        updateData.dueDate = null;
+      }
+    }
+
+    // Tự động thêm Assignee mới vào Watchers
+    if (updateTaskDto.assignees && Array.isArray(updateTaskDto.assignees) && existingTask) {
+      const currentWatchers = (existingTask.watchers || []).map((w: any) => w._id?.toString() || w.toString());
+      const newWatchers = new Set<string>(currentWatchers);
+      updateTaskDto.assignees.forEach((aId: string) => {
+        if (aId) newWatchers.add(aId);
+      });
+      updateData.watchers = Array.from(newWatchers);
     }
 
     const task = await this.taskModel
       .findByIdAndUpdate(taskId, updateData, { returnDocument: 'after' })
-      .populate('assignees', 'name email profileImage');
+      .populate('assignees', 'name email profileImage')
+      .populate('watchers', 'name email profileImage');
 
     if (!task) {
       throw new NotFoundException('Không tìm thấy công việc để cập nhật');
@@ -312,22 +438,101 @@ export class TasksService {
       await this.updateProjectProgress(task.project.toString());
     }
 
+    // Ghi nhật ký nếu có userId và có sự thay đổi thực sự
+    if (userId && existingTask) {
+      let action: any = 'updated_task';
+      let desc = '';
+
+      const mapStatusToVi = (status?: string): string => {
+        if (!status) return 'Cần làm';
+        const s = status.toLowerCase().trim();
+        if (s === 'in progress' || s === 'in_progress' || s === 'đang thực hiện') return 'Đang thực hiện';
+        if (s === 'done' || s === 'completed' || s === 'hoàn thành') return 'Hoàn thành';
+        if (s === 'review' || s === 'đang review') return 'Đang review';
+        if (s === 'on hold' || s === 'on_hold' || s === 'tạm dừng') return 'Tạm dừng';
+        if (s === 'cancelled' || s === 'đã hủy') return 'Đã hủy';
+        return 'Cần làm';
+      };
+
+      const mapPriorityToVi = (priority?: string): string => {
+        if (!priority) return 'Trung bình';
+        const p = priority.toLowerCase().trim();
+        if (p === 'high' || p === 'cao') return 'Cao';
+        if (p === 'low' || p === 'thấp') return 'Thấp';
+        return 'Trung bình';
+      };
+
+      if (updateTaskDto.status && existingTask.status !== updateTaskDto.status) {
+        const viStatus = mapStatusToVi(updateTaskDto.status);
+        if (viStatus === 'Hoàn thành') {
+          action = 'completed_task';
+          desc = 'đã hoàn thành công việc này';
+        } else {
+          desc = `đã chuyển trạng thái sang "${viStatus}"`;
+        }
+      } else if (updateTaskDto.subtasks) {
+        action = 'updated_subtask';
+        desc = 'đã cập nhật danh sách công việc phụ';
+      } else if (updateTaskDto.attachments) {
+        action = 'added_attachment';
+        desc = 'đã cập nhật tệp đính kèm';
+      } else if (updateTaskDto.watchers) {
+        const oldWatchers = (existingTask.watchers || []).map((w: any) => w._id?.toString() || w.toString());
+        const newWatchers = (updateTaskDto.watchers || []).map((w: any) => w._id?.toString() || w.toString());
+        const isNowWatching = newWatchers.includes(userId);
+        const wasWatching = oldWatchers.includes(userId);
+        if (isNowWatching && !wasWatching) {
+          desc = 'đã bắt đầu theo dõi công việc này';
+        } else if (!isNowWatching && wasWatching) {
+          desc = 'đã ngừng theo dõi công việc này';
+        } else {
+          desc = 'đã cập nhật danh sách người theo dõi';
+        }
+      } else if (updateTaskDto.assignees) {
+        desc = 'đã thay đổi người thực hiện';
+      } else if (updateTaskDto.dueDate) {
+        desc = 'đã cập nhật ngày hạn chót';
+      } else if (updateTaskDto.priority && existingTask.priority !== updateTaskDto.priority) {
+        const viPriority = mapPriorityToVi(updateTaskDto.priority);
+        desc = `đã đổi độ ưu tiên sang "${viPriority}"`;
+      } else if (updateTaskDto.title && existingTask.title !== updateTaskDto.title) {
+        desc = 'đã đổi tiêu đề công việc';
+      } else if (updateTaskDto.description && existingTask.description !== updateTaskDto.description) {
+        desc = 'đã cập nhật mô tả công việc';
+      }
+
+      if (desc) {
+        await this.activitiesService.logActivity({
+          user: userId,
+          action,
+          resourceType: 'Task',
+          resourceId: taskId,
+          details: { description: desc },
+        });
+      }
+    }
+
     return task;
   }
 
-  async deleteTask(taskId: string) {
-    const task = await this.taskModel.findByIdAndDelete(taskId);
-    if (!task) {
+  async deleteTask(taskId: string, userId?: string) {
+    const existing = await this.taskModel.findById(taskId);
+    if (!existing) {
       throw new NotFoundException('Không tìm thấy công việc để xóa');
     }
 
-    // Xóa reference khỏi project
-    await this.projectModel.findByIdAndUpdate(task.project, {
-      $pull: { tasks: task._id },
-    });
+    if (userId && existing.project) {
+      await this.checkTaskEditPermission(existing.project.toString(), userId, existing);
+    }
 
-    if (task.project) {
-      await this.updateProjectProgress(task.project.toString());
+    await this.taskModel.findByIdAndDelete(taskId);
+
+    // Xóa reference khỏi project
+    if (existing.project) {
+      await this.projectModel.findByIdAndUpdate(existing.project, {
+        $pull: { tasks: existing._id },
+      });
+      await this.updateProjectProgress(existing.project.toString());
     }
 
     return { message: 'Đã xóa công việc thành công' };

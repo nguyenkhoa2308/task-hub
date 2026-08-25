@@ -9,6 +9,7 @@ interface AssigneeSelectProps {
   onChange: (v: string[]) => void;
   members: any[];
   placeholder?: string;
+  disabled?: boolean;
 }
 
 export function AssigneeSelect({
@@ -16,6 +17,7 @@ export function AssigneeSelect({
   onChange,
   members,
   placeholder = "Chọn người thực hiện...",
+  disabled = false,
 }: AssigneeSelectProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -57,8 +59,9 @@ export function AssigneeSelect({
       {/* Trigger */}
       <button
         type="button"
-        onClick={() => setOpen((p) => !p)}
-        className="w-full min-h-14 flex items-center justify-between gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm hover:border-slate-300 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+        disabled={disabled}
+        onClick={() => !disabled && setOpen((p) => !p)}
+        className={`w-full min-h-14 flex items-center justify-between gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 ${disabled ? "opacity-60 cursor-not-allowed bg-slate-50" : "hover:border-slate-300 cursor-pointer"}`}
       >
         {selectedMembers.length === 0 ? (
           <span className="text-slate-400 font-normal">{placeholder}</span>
@@ -73,8 +76,8 @@ export function AssigneeSelect({
                 >
                   <Avatar className="size-6 shrink-0">
                     <AvatarImage src={u.profileImage} />
-                    <AvatarFallback className="bg-blue-600 text-white text-[10px] font-bold">
-                      {u.name?.charAt(0)?.toUpperCase() || "U"}
+                    <AvatarFallback className="text-[10px] font-semibold">
+                      {u.name?.charAt(0)?.toUpperCase() || "?"}
                     </AvatarFallback>
                   </Avatar>
                   {u.name || "Thành viên"}
@@ -130,8 +133,8 @@ export function AssigneeSelect({
 
                     <Avatar className="size-8 shrink-0">
                       <AvatarImage src={u.profileImage} />
-                      <AvatarFallback className="bg-blue-600 text-white font-bold text-[9px]">
-                        {u.name?.charAt(0)?.toUpperCase() || "U"}
+                      <AvatarFallback className="text-[9px] font-semibold">
+                        {u.name?.charAt(0)?.toUpperCase() || "?"}
                       </AvatarFallback>
                     </Avatar>
 

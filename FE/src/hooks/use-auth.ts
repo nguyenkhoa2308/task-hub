@@ -1,5 +1,5 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { postData, getData } from "@/lib/axios";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { postData, getData, patchData } from "@/lib/axios";
 import type { SignUpFormData } from "@/components/auth/register-form";
 import { SigninFormData } from "@/components/auth/login-form";
 
@@ -52,5 +52,23 @@ export const useGetMeQuery = () => {
 export const useLogoutMutation = () => {
     return useMutation({
         mutationFn: () => postData("/auth/logout", {}),
+    });
+};
+
+export const useUpdateProfileMutation = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (data: { name?: string; profileImage?: string }) =>
+            patchData("/auth/profile", data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
+        },
+    });
+};
+
+export const useChangePasswordMutation = () => {
+    return useMutation({
+        mutationFn: (data: { currentPassword: string; newPassword: string }) =>
+            postData("/auth/change-password", data),
     });
 };

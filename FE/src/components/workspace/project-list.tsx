@@ -124,9 +124,6 @@ export function ProjectList({
               className="group block"
             >
               <div className="h-full bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs hover:shadow-xl hover:shadow-slate-200/50 hover:border-blue-300 hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between relative overflow-hidden">
-                {/* Visual Top Line Indicator */}
-                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-
                 {/* Top Section: Title & Status Badge */}
                 <div>
                   <div className="flex items-start justify-between gap-3 mb-2">

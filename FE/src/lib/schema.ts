@@ -49,6 +49,7 @@ export const projectSchema = z.object({
   startDate: z.string().optional(),
   dueDate: z.string().optional(),
   tags: z.string().optional(),
+  isPrivate: z.boolean().optional(),
   members: z
     .array(
       z.object({

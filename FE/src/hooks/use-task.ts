@@ -1,5 +1,5 @@
 import { getData, postData, patchData, deleteData } from "@/lib/axios";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 export interface CreateTaskPayload {
   title: string;
@@ -55,9 +55,15 @@ export const useGetTaskById = (taskId: string) => {
 };
 
 export const useUpdateTask = () => {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) =>
       patchData(`/tasks/${id}`, data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["task-activities", variables.id] });
+      queryClient.invalidateQueries({ queryKey: ["task-activities"] });
+      queryClient.invalidateQueries({ queryKey: ["task", variables.id] });
+    },
   });
 };
 

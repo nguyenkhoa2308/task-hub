@@ -17,17 +17,22 @@ export default function WorkspaceInvitePage() {
   const { data: workspace, isLoading, isError } = useGetWorkspaceById(workspaceId);
   const { mutate: joinWorkspace, isPending: isJoining } = useJoinWorkspaceByLink();
 
-  const [hasJoined, setHasJoined] = useState(false);
+  const [joinState, setJoinState] = useState<"none" | "active" | "pending">("none");
 
   const handleJoin = () => {
     if (!workspaceId) return;
     joinWorkspace(workspaceId, {
-      onSuccess: () => {
-        setHasJoined(true);
-        toast.success("Tham gia workspace thành công!");
-        setTimeout(() => {
-          router.push(`/workspaces/${workspaceId}`);
-        }, 1500);
+      onSuccess: (res: any) => {
+        if (res?.status === "pending") {
+          setJoinState("pending");
+          toast.info(res?.message || "Yêu cầu tham gia đã được gửi! Vui lòng chờ phê duyệt.");
+        } else {
+          setJoinState("active");
+          toast.success("Tham gia workspace thành công!");
+          setTimeout(() => {
+            router.push(`/workspaces/${workspaceId}`);
+          }, 1500);
+        }
       },
       onError: (err: any) => {
         toast.error(err?.message || "Không thể tham gia workspace");
@@ -102,10 +107,20 @@ export default function WorkspaceInvitePage() {
           <span>{workspace.members?.length || 0} thành viên đã tham gia</span>
         </div>
 
-        {hasJoined ? (
+        {joinState === "active" ? (
           <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-700 text-xs font-bold flex items-center justify-center gap-2">
             <CheckCircle2 className="size-5 text-emerald-600" />
             Đã tham gia! Đang chuyển hướng...
+          </div>
+        ) : joinState === "pending" ? (
+          <div className="p-4 bg-amber-50 border border-amber-200/80 rounded-2xl text-amber-800 text-xs text-left space-y-1.5">
+            <div className="font-bold flex items-center gap-2 text-amber-900 text-sm">
+              <AlertCircle className="size-4 text-amber-600 shrink-0" />
+              Yêu cầu đã được gửi!
+            </div>
+            <p className="text-[11px] leading-relaxed text-amber-700">
+              Yêu cầu tham gia của bạn đang chờ Quản trị viên của workspace phê duyệt. Bạn sẽ nhận được thông báo khi được chấp nhận.
+            </p>
           </div>
         ) : (
           <Button

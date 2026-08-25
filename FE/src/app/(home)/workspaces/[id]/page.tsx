@@ -3,12 +3,13 @@
 import { useState } from "react";
 import { useParams } from "next/navigation";
 
-import { useGetWorkspaceById } from "@/hooks/use-workspace";
+import { useGetWorkspaceById, useGetPendingMembers } from "@/hooks/use-workspace";
 import { Skeleton } from "@/components/ui/skeleton";
 import { WorkspaceHeader } from "@/components/workspace/workspace-header";
 import { ProjectList } from "@/components/workspace/project-list";
 import { CreateProjectDialog } from "@/components/workspace/create-project";
 import { InviteMemberDialog } from "@/components/workspace/invite-member";
+import { PendingMembersDialog } from "@/components/workspace/pending-members";
 import type { Member } from "@/types";
 
 export default function WorkspaceDetailPage() {
@@ -17,8 +18,11 @@ export default function WorkspaceDetailPage() {
 
     const [isCreateProject, setIsCreateProject] = useState(false);
     const [isInviteMember, setIsInviteMember] = useState(false);
+    const [isPendingMembers, setIsPendingMembers] = useState(false);
 
     const { data, isLoading } = useGetWorkspaceById(workspaceId);
+    const { data: pendingMembers } = useGetPendingMembers(workspaceId);
+    const pendingCount = pendingMembers?.length || 0;
 
     if (isLoading) {
         return (
@@ -98,6 +102,8 @@ export default function WorkspaceDetailPage() {
                 members={(data.members as Member[]) || []}
                 onCreateProject={() => setIsCreateProject(true)}
                 onInviteMember={() => setIsInviteMember(true)}
+                onOpenPendingMembers={() => setIsPendingMembers(true)}
+                pendingCount={pendingCount}
             />
 
             <ProjectList
@@ -116,6 +122,12 @@ export default function WorkspaceDetailPage() {
             <InviteMemberDialog
                 isOpen={isInviteMember}
                 onOpenChange={setIsInviteMember}
+                workspaceId={workspaceId}
+            />
+
+            <PendingMembersDialog
+                isOpen={isPendingMembers}
+                onOpenChange={setIsPendingMembers}
                 workspaceId={workspaceId}
             />
         </div>

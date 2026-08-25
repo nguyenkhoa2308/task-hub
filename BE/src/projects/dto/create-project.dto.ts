@@ -62,4 +62,8 @@ export class CreateProjectDto {
   @IsOptional()
   @IsBoolean()
   isArchived?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  isPrivate?: boolean;
 }

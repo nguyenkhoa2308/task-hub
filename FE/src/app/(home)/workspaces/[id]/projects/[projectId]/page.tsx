@@ -20,9 +20,15 @@ import {
   AlertTriangle,
   Tag,
   CheckCircle2,
+  Globe,
+  Lock,
+  UserPlus,
 } from "lucide-react";
 
 import { useGetProjectById, useUpdateProject, useDeleteProject } from "@/hooks/use-project";
+import { useGetWorkspaceById } from "@/hooks/use-workspace";
+import { useGetMeQuery } from "@/hooks/use-auth";
+import { ProjectMembersDialog } from "@/components/project/project-members";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -40,7 +46,7 @@ import { KanbanBoard } from "@/components/project/kanban-board";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { ProjectStatus } from "@/types";
-
+import { TaskList } from "@/components/project/task-list";
 // Cấu hình nhãn và màu sắc Trạng thái
 const STATUS_CONFIG: Record<
   string,
@@ -92,10 +98,28 @@ export default function ProjectDetailPage() {
   const projectId = params.projectId;
 
   const [activeTab, setActiveTab] = useState<"board" | "list" | "members" | "settings">("board");
+  const [isProjectMembersOpen, setIsProjectMembersOpen] = useState(false);
 
   const { data: project, isLoading, isError } = useGetProjectById(projectId);
+  const { data: workspaceData } = useGetWorkspaceById(workspaceId);
   const { mutate: updateProjectMutate, isPending: isUpdating } = useUpdateProject();
   const { mutate: deleteProjectMutate, isPending: isDeleting } = useDeleteProject();
+
+  const handleUpdateProjectData = async (updateData: any) => {
+    return new Promise((resolve, reject) => {
+      updateProjectMutate(
+        { id: projectId, data: updateData },
+        {
+          onSuccess: (res) => {
+            queryClient.invalidateQueries({ queryKey: ["project", projectId] });
+            queryClient.invalidateQueries({ queryKey: ["projects", workspaceId] });
+            resolve(res);
+          },
+          onError: (err) => reject(err),
+        }
+      );
+    });
+  };
 
   // Settings State Form
   const [editTitle, setEditTitle] = useState("");
@@ -105,7 +129,45 @@ export default function ProjectDetailPage() {
   const [editDueDate, setEditDueDate] = useState("");
   const [editTags, setEditTags] = useState("");
 
+  const { data: meData } = useGetMeQuery();
+  const me = (meData as any)?.user || meData;
+  const currentUserId = (me?._id || me?.id || "").toString();
+
   const projectData: any = project;
+  const membersList: any[] = projectData?.members || [];
+  const workspaceMembersList: any[] = (workspaceData as any)?.members || [];
+
+  const isCreator = Boolean(
+    currentUserId &&
+    projectData?.createdBy &&
+    (projectData.createdBy?._id || projectData.createdBy)?.toString() === currentUserId
+  );
+
+  const projectMember = membersList.find((m: any) => {
+    const uId = (m.user?._id || m.user?.id || m.user || "").toString();
+    return currentUserId && uId === currentUserId;
+  });
+
+  const workspaceMember = workspaceMembersList.find((m: any) => {
+    const uId = (m.user?._id || m.user?.id || m.user || "").toString();
+    return currentUserId && uId === currentUserId;
+  });
+
+  const isWsAdminOrOwner = Boolean(
+    workspaceMember && ["owner", "admin"].includes(workspaceMember.role)
+  );
+
+  const isProjectManagerOrContributor = Boolean(
+    isCreator || (projectMember && ["manager", "contributor"].includes(projectMember.role))
+  );
+
+  const canEdit = Boolean(
+    isProjectManagerOrContributor || (isWsAdminOrOwner && !projectData?.isPrivate)
+  );
+
+  const canManageMembers = Boolean(
+    isCreator || (projectMember && projectMember.role === "manager") || isWsAdminOrOwner
+  );
 
   useEffect(() => {
     if (projectData) {
@@ -243,7 +305,6 @@ export default function ProjectDetailPage() {
   const statusKey = (projectData?.status || "PLANNING").toUpperCase();
   const statusConfig = STATUS_CONFIG[statusKey] || STATUS_CONFIG.PLANNING;
   const progress = projectData?.progress ?? 0;
-  const membersList = projectData?.members || [];
   const workspaceName = projectData?.workspace?.name || "Workspace";
 
   return (
@@ -283,6 +344,18 @@ export default function ProjectDetailPage() {
                   {statusConfig.label}
                 </span>
 
+                {projectData?.isPrivate ? (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full border text-xs font-bold bg-amber-50 text-amber-700 border-amber-200">
+                    <Lock className="size-3 text-amber-600" />
+                    Riêng tư
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full border text-xs font-bold bg-slate-50 text-slate-600 border-slate-200">
+                    <Globe className="size-3 text-slate-400" />
+                    Công khai
+                  </span>
+                )}
+
                 {projectData?.isArchived && (
                   <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full border text-xs font-bold bg-slate-100 text-slate-600 border-slate-200">
                     <Archive className="size-3" />
@@ -299,6 +372,16 @@ export default function ProjectDetailPage() {
 
           {/* Top Actions */}
           <div className="flex items-center gap-2 shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsProjectMembersOpen(true)}
+              className="border-slate-200 font-semibold gap-1.5 cursor-pointer hover:bg-slate-50"
+            >
+              <Users className="size-4 text-blue-600" />
+              Thành viên dự án ({membersList.length})
+            </Button>
+
             <Button
               variant="outline"
               size="sm"
@@ -406,29 +489,31 @@ export default function ProjectDetailPage() {
 
         {/* TAB 1: KANBAN BOARD */}
         {activeTab === "board" && (
-          <KanbanBoard projectId={projectId} projectMembers={membersList} />
+          <KanbanBoard projectId={projectId} projectMembers={membersList} canEdit={canEdit} />
         )}
 
         {/* TAB 2: TASK LIST VIEW */}
-        {activeTab === "list" && (
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-8 text-center space-y-3">
-            <ListTodo className="size-10 text-slate-300 mx-auto" />
-            <h3 className="text-base font-bold text-slate-800">
-              Danh sách Công việc
-            </h3>
-            <p className="text-xs text-slate-500 max-w-sm mx-auto">
-              Chưa có công việc nào trong dự án này. Hãy tạo công việc mới ở Bảng Kanban để theo dõi tiến độ!
-            </p>
-          </div>
-        )}
+        {activeTab === "list" && (<TaskList projectId={projectId} canEdit={canEdit} />)}
 
         {/* TAB 3: MEMBERS VIEW */}
         {activeTab === "members" && (
           <div className="bg-white border border-slate-200/80 rounded-2xl p-6 space-y-4">
-            <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
-              <Users className="size-5 text-blue-600" />
-              Thành viên Dự án ({membersList.length})
-            </h3>
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                <Users className="size-5 text-blue-600" />
+                Thành viên Dự án ({membersList.length})
+              </h3>
+              {canManageMembers && (
+                <Button
+                  size="sm"
+                  onClick={() => setIsProjectMembersOpen(true)}
+                  className="gap-1.5 font-bold bg-blue-600 hover:bg-blue-700 text-white text-xs rounded-xl cursor-pointer"
+                >
+                  <UserPlus className="size-3.5" />
+                  Quản lý & Thêm thành viên
+                </Button>
+              )}
+            </div>
 
             {membersList.length === 0 ? (
               <p className="text-xs text-slate-400 py-4 text-center">
@@ -447,8 +532,8 @@ export default function ProjectDetailPage() {
                     >
                       <Avatar className="size-10 border border-white shrink-0">
                         <AvatarImage src={user.profileImage} />
-                        <AvatarFallback className="bg-blue-600 text-white font-bold text-sm">
-                          {user.name?.charAt(0)?.toUpperCase() || "U"}
+                        <AvatarFallback className="text-sm font-semibold">
+                          {user.name?.charAt(0)?.toUpperCase() || "?"}
                         </AvatarFallback>
                       </Avatar>
 
@@ -587,58 +672,6 @@ export default function ProjectDetailPage() {
               </div>
             </form>
 
-            {/* Quản lý Thành viên Dự Án (Project Members) */}
-            <div className="bg-white border border-slate-200/80 rounded-2xl p-6 space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                <div>
-                  <h3 className="text-lg font-extrabold text-slate-800 flex items-center gap-2">
-                    <Users className="size-5 text-blue-600" />
-                    Thành viên Dự án ({membersList.length})
-                  </h3>
-                  <p className="text-sm text-slate-500">
-                    Danh sách thành viên có quyền truy cập vào dự án này.
-                  </p>
-                </div>
-              </div>
-
-              {membersList.length === 0 ? (
-                <p className="text-xs text-slate-400 py-3 text-center">
-                  Chưa có thông tin thành viên dự án.
-                </p>
-              ) : (
-                <div className="divide-y divide-slate-100">
-                  {membersList.map((m: any, index: number) => {
-                    const user = m.user || m;
-                    const roleLabel = ROLE_LABELS[m.role] || m.role || "Thành viên";
-
-                    return (
-                      <div key={user._id || index} className="flex items-center justify-between py-3">
-                        <div className="flex items-center gap-3">
-                          <div className="size-8 rounded-xl bg-blue-50 flex items-center justify-center">
-                            <span className="text-xs font-bold text-blue-600">{index + 1}</span>
-                          </div>
-                          <Avatar className="size-9 border border-white shrink-0">
-                            <AvatarImage src={user.profileImage} />
-                            <AvatarFallback className="bg-blue-600 text-white font-bold text-xs">
-                              {user.name?.charAt(0)?.toUpperCase() || "U"}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <h4 className="text-sm font-bold text-slate-800">{user.name || "Thành viên"}</h4>
-                            <p className="text-xs text-slate-400">{user.email}</p>
-                          </div>
-                        </div>
-
-                        <span className="text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-3 py-1 rounded-full">
-                          {roleLabel}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
             {/* Lưu Trữ Dự Án (Archive) */}
             <div className="bg-white border border-slate-200/80 rounded-2xl p-6 space-y-4">
               <div className="flex items-center justify-between">
@@ -693,6 +726,17 @@ export default function ProjectDetailPage() {
             </div>
           </div>
         )}
+
+        <ProjectMembersDialog
+          isOpen={isProjectMembersOpen}
+          onOpenChange={setIsProjectMembersOpen}
+          projectId={projectId}
+          isPrivate={projectData?.isPrivate || false}
+          workspaceMembers={workspaceMembersList}
+          currentProjectMembers={membersList}
+          onUpdateProject={handleUpdateProjectData}
+          canManageMembers={canManageMembers}
+        />
       </div>
     </div>
   );

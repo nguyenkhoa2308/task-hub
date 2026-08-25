@@ -53,6 +53,9 @@ export class Project extends Document {
 
     @Prop({ type: Boolean, default: false })
     isArchived!: boolean;
+
+    @Prop({ type: Boolean, default: false })
+    isPrivate!: boolean;
 }
 
 export const ProjectSchema = SchemaFactory.createForClass(Project);

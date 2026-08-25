@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Plus, GripVertical, Clock, Trash2, ArrowUpDown, Filter, Eye } from "lucide-react";
+import { Plus, GripVertical, Clock, Trash2, ArrowUpDown, Filter, Eye, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -16,7 +16,7 @@ import { CreateTaskDialog } from "@/components/task/create-task-dialog";
 import { TaskDetailModal } from "@/components/task/task-detail-modal";
 import { formatRelativeDays } from "@/lib/utils";
 
-export type TaskColumnStatus = "todo" | "in_progress" | "done";
+export type TaskColumnStatus = "todo" | "in_progress" | "review" | "done";
 export type SortOption = "deadline_priority" | "priority_only" | "deadline_only" | "title_az";
 
 export interface KanbanTask {
@@ -34,6 +34,7 @@ export interface KanbanTask {
 interface KanbanBoardProps {
   projectId?: string;
   projectMembers?: any[];
+  canEdit?: boolean;
 }
 
 const COLUMNS: {
@@ -59,12 +60,22 @@ const COLUMNS: {
     {
       id: "in_progress",
       statusValue: "In Progress",
-      title: "Đang làm",
+      title: "Đang thực hiện",
       accentBg: "bg-blue-50/40",
       borderColor: "border-blue-200/80",
       dotColor: "bg-blue-500 animate-pulse",
       badgeBg: "bg-blue-100/80",
       badgeText: "text-blue-700",
+    },
+    {
+      id: "review",
+      statusValue: "Review",
+      title: "Đang review",
+      accentBg: "bg-purple-50/40",
+      borderColor: "border-purple-200/80",
+      dotColor: "bg-purple-500",
+      badgeBg: "bg-purple-100/80",
+      badgeText: "text-purple-700",
     },
     {
       id: "done",
@@ -82,6 +93,7 @@ const mapStatusToColumn = (status?: string): TaskColumnStatus => {
   if (!status) return "todo";
   const upper = status.toUpperCase();
   if (upper.includes("PROGRESS")) return "in_progress";
+  if (upper.includes("REVIEW")) return "review";
   if (upper.includes("DONE") || upper.includes("COMPLETED")) return "done";
   return "todo";
 };
@@ -92,7 +104,7 @@ const PRIORITY_SCORE: Record<string, number> = {
   Low: 1,
 };
 
-export function KanbanBoard({ projectId, projectMembers = [] }: KanbanBoardProps) {
+export function KanbanBoard({ projectId, projectMembers = [], canEdit = true }: KanbanBoardProps) {
   const queryClient = useQueryClient();
   const { data: remoteTasks } = useGetTasksByProject(projectId || "", { sortBy: "deadline_priority" });
   const { mutate: updateTaskMutate } = useUpdateTask();
@@ -141,8 +153,13 @@ export function KanbanBoard({ projectId, projectMembers = [] }: KanbanBoardProps
   const sortedTasks = useMemo(() => tasks, [tasks]);
 
   const handleDragStart = (e: React.DragEvent, taskId: string) => {
-    e.dataTransfer.setData("text/plain", taskId);
+    if (!canEdit) {
+      e.preventDefault();
+      toast.error("Bạn đang ở chế độ Chỉ xem (Viewer), không được kéo thả công việc");
+      return;
+    }
     setDraggingTaskId(taskId);
+    e.dataTransfer.setData("text/plain", taskId);
   };
 
   const handleDragOver = (e: React.DragEvent, columnId: TaskColumnStatus) => {
@@ -166,6 +183,12 @@ export function KanbanBoard({ projectId, projectMembers = [] }: KanbanBoardProps
     setDraggingTaskId(null);
 
     if (!taskId) return;
+
+    const currentTask = tasks.find((t) => (t._id || t.id) === taskId);
+    if (currentTask && mapStatusToColumn(currentTask.status) === targetColumnId) {
+      // Nếu thả lại đúng cột cũ thì không làm gì
+      return;
+    }
 
     const colConfig = COLUMNS.find((c) => c.id === targetColumnId);
     const newStatusValue = colConfig?.statusValue || "To Do";
@@ -229,6 +252,7 @@ export function KanbanBoard({ projectId, projectMembers = [] }: KanbanBoardProps
         </span>
         <Button
           onClick={() => handleOpenCreateModal("To Do")}
+          disabled={!canEdit}
           size="sm"
           className="gap-1.5 font-bold cursor-pointer shadow-xs hover:shadow-md transition-all rounded-xl h-8 text-xs"
         >
@@ -237,8 +261,15 @@ export function KanbanBoard({ projectId, projectMembers = [] }: KanbanBoardProps
         </Button>
       </div>
 
+      {!canEdit && (
+        <div className="mb-4 p-3 bg-amber-50 border border-amber-200/80 rounded-xl text-amber-800 text-xs font-semibold flex items-center gap-2">
+          <Lock className="size-4 text-amber-600 shrink-0" />
+          <span>Bạn đang ở chế độ <strong>Chỉ xem (Viewer)</strong>. Tính năng di chuyển thẻ Kanban và thao tác công việc đã bị khóa.</span>
+        </div>
+      )}
+
       {/* Board Columns */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
         {COLUMNS.map((col) => {
           const columnTasks = sortedTasks.filter(
             (t) => mapStatusToColumn(t.status) === col.id
@@ -271,14 +302,16 @@ export function KanbanBoard({ projectId, projectMembers = [] }: KanbanBoardProps
                   </span>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => handleOpenCreateModal(col.statusValue)}
-                  className="p-1 text-slate-400 hover:text-blue-600 hover:bg-white rounded-lg transition-colors cursor-pointer"
-                  title={`Thêm công việc vào ${col.title}`}
-                >
-                  <Plus className="size-4" />
-                </button>
+                {canEdit && (
+                  <button
+                    type="button"
+                    onClick={() => handleOpenCreateModal(col.statusValue)}
+                    className="p-1 text-slate-400 hover:text-blue-600 hover:bg-white rounded-lg transition-colors cursor-pointer"
+                    title={`Thêm công việc vào ${col.title}`}
+                  >
+                    <Plus className="size-4" />
+                  </button>
+                )}
               </div>
 
               {/* Task List in Column */}
@@ -304,7 +337,7 @@ export function KanbanBoard({ projectId, projectMembers = [] }: KanbanBoardProps
                     return (
                       <div
                         key={taskId}
-                        draggable
+                        draggable={canEdit}
                         onDragStart={(e) => handleDragStart(e, taskId)}
                         onClick={() => setSelectedTaskForDetail(task)}
                         className={`group bg-white border rounded-xl p-3.5 shadow-2xs hover:shadow-md transition-all duration-200 cursor-pointer relative ${isOverdue
@@ -336,17 +369,19 @@ export function KanbanBoard({ projectId, projectMembers = [] }: KanbanBoardProps
                             )}
                           </div>
 
-                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button
-                              type="button"
-                              onClick={(e) => handleDeleteTask(e, taskId)}
-                              className="p-1 text-slate-400 hover:text-rose-500 rounded-md transition-colors"
-                              title="Xóa công việc"
-                            >
-                              <Trash2 className="size-3.5" />
-                            </button>
-                            <GripVertical className="size-3.5 text-slate-300 cursor-grab active:cursor-grabbing" />
-                          </div>
+                          {canEdit && (
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                type="button"
+                                onClick={(e) => handleDeleteTask(e, taskId)}
+                                className="p-1 text-slate-400 hover:text-rose-500 rounded-md transition-colors"
+                                title="Xóa công việc"
+                              >
+                                <Trash2 className="size-3.5" />
+                              </button>
+                              <GripVertical className="size-3.5 text-slate-300 cursor-grab active:cursor-grabbing" />
+                            </div>
+                          )}
                         </div>
 
                         {/* Task Title & Description */}
@@ -380,8 +415,8 @@ export function KanbanBoard({ projectId, projectMembers = [] }: KanbanBoardProps
                                 return (
                                   <Avatar key={idx} className="size-5 border border-white">
                                     <AvatarImage src={userObj?.profileImage} />
-                                    <AvatarFallback className="text-[9px] bg-blue-100 text-blue-700 font-bold">
-                                      {userObj?.name?.charAt(0) || "U"}
+                                    <AvatarFallback className="text-[9px] font-semibold">
+                                      {userObj?.name?.charAt(0)?.toUpperCase() || "?"}
                                     </AvatarFallback>
                                   </Avatar>
                                 );
@@ -418,6 +453,7 @@ export function KanbanBoard({ projectId, projectMembers = [] }: KanbanBoardProps
           onClose={() => setSelectedTaskForDetail(null)}
           projectMembers={projectMembers}
           refetchTasks={() => queryClient.invalidateQueries({ queryKey: ["tasks", projectId] })}
+          canEdit={canEdit}
         />
       )}
     </div>

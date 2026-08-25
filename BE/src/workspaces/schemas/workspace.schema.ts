@@ -9,6 +9,9 @@ export class WorkspaceMember {
     @Prop({ type: String, enum: ['owner', 'member', 'admin', 'viewer'], default: 'member' })
     role!: 'owner' | 'member' | 'admin' | 'viewer';
 
+    @Prop({ type: String, enum: ['active', 'pending'], default: 'active' })
+    status!: 'active' | 'pending';
+
     @Prop({ type: Date, default: Date.now })
     joinedAt!: Date;
 }

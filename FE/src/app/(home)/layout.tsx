@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 
 import type { WorkSpace } from "@/types";
 import { useAppSelector } from "@/lib/redux/hooks";
+import { useGetWorkspaces } from "@/hooks/use-workspace";
 
 import { Loading } from "@/components/ui/loading";
 import DashboardHeader from "@/components/dashboard/dashboard-header";
@@ -17,11 +18,13 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }>) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const { data: workspaces = [] } = useGetWorkspaces();
+
   const { isLoading, isAuthenticated } = useAppSelector((state) => state.auth);
   const [isCreateWorkSpace, setIsCreateWorkSpace] = useState(false);
-  const [currentWorkSpace, setCurrentWorkSpace] = useState<WorkSpace | null>(
-    null,
-  );
+  const [currentWorkSpace, setCurrentWorkSpace] = useState<WorkSpace | null>(null);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -29,13 +32,45 @@ export default function DashboardLayout({
     }
   }, [isLoading, isAuthenticated, router]);
 
+  // Sync currentWorkSpace với pathname và query searchParams
+  useEffect(() => {
+    if (pathname === "/dashboard") {
+      const wsId = searchParams.get("workspaceId");
+      if (wsId && wsId !== "all") {
+        const found = workspaces.find((w: any) => w._id === wsId);
+        if (found) setCurrentWorkSpace(found);
+      } else {
+        setCurrentWorkSpace({ _id: "all", name: "Tất cả Workspace", color: "#3b82f6" } as any);
+      }
+    } else if (pathname.startsWith("/workspaces/")) {
+      const parts = pathname.split("/");
+      const wsId = parts[2];
+      if (wsId) {
+        const found = workspaces.find((w: any) => w._id === wsId);
+        if (found) setCurrentWorkSpace(found);
+      }
+    }
+  }, [pathname, searchParams, workspaces]);
+
   if (isLoading || !isAuthenticated) {
     return <Loading text="Đang tải..." />;
   }
 
   const handleWorkspaceSelected = (workspace: WorkSpace) => {
     setCurrentWorkSpace(workspace);
-    router.push(`/workspaces/${workspace._id}`);
+    if (pathname === "/dashboard") {
+      if (!workspace._id || workspace._id === "all") {
+        router.push("/dashboard");
+      } else {
+        router.push(`/dashboard?workspaceId=${workspace._id}`);
+      }
+    } else {
+      if (workspace._id && workspace._id !== "all") {
+        router.push(`/workspaces/${workspace._id}`);
+      } else {
+        router.push("/dashboard");
+      }
+    }
   };
 
   return (
@@ -66,3 +101,4 @@ export default function DashboardLayout({
     </div>
   );
 }
+

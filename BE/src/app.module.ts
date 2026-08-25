@@ -15,6 +15,10 @@ import { APP_GUARD } from '@nestjs/core';
 import { WorkspacesModule } from './workspaces/workspaces.module';
 import { ProjectsModule } from './projects/projects.module';
 import { TasksModule } from './tasks/tasks.module';
+import { CommentsModule } from './comments/comments.module';
+import { ActivitiesModule } from './activities/activities.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { MembersModule } from './members/members.module';
 
 @Module({
   imports: [
@@ -42,6 +46,10 @@ import { TasksModule } from './tasks/tasks.module';
     WorkspacesModule,
     ProjectsModule,
     TasksModule,
+    CommentsModule,
+    ActivitiesModule,
+    NotificationsModule,
+    MembersModule,
   ],
   controllers: [AppController],
   providers: [AppService, {

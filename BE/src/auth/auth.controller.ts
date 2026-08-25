@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, Query, Res, Inject, Req, HttpException, HttpStatus, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Body, Query, Res, Inject, Req, HttpException, HttpStatus, UseGuards } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { ARCJET, type ArcjetNest, validateEmail } from '@arcjet/nest';
 
@@ -106,6 +106,29 @@ export class AuthController {
   async getMe(@Req() req: Request & { user: { userId: string; email: string } }) {
     const user = await this.authService.getProfile(req.user.userId);
     return { user };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('profile')
+  async updateProfile(
+    @Req() req: Request & { user: { userId: string } },
+    @Body() dto: { name?: string; profileImage?: string },
+  ) {
+    const user = await this.authService.updateProfile(req.user.userId, dto);
+    return { message: 'Cập nhật hồ sơ thành công!', user };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('change-password')
+  async changePassword(
+    @Req() req: Request & { user: { userId: string } },
+    @Body() dto: { currentPassword: string; newPassword: string },
+  ) {
+    return this.authService.changePassword(
+      req.user.userId,
+      dto.currentPassword,
+      dto.newPassword,
+    );
   }
 
   @Post('verify-email')
