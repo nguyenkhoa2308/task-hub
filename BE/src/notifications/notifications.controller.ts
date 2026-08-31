@@ -12,8 +12,11 @@ import {
 import { Observable } from 'rxjs';
 import { NotificationsService } from './notifications.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { ApiCookieAuth, ApiTags } from '@nestjs/swagger';
 
 @Controller('notifications')
+@ApiTags('Notifications')
+@ApiCookieAuth('access_token')
 @UseGuards(JwtAuthGuard)
 export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}

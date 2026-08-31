@@ -3,8 +3,11 @@ import { WorkspacesService } from './workspaces.service';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
 import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { ApiCookieAuth, ApiTags } from '@nestjs/swagger';
 
 @Controller('workspaces')
+@ApiTags('Workspaces')
+@ApiCookieAuth('access_token')
 @UseGuards(JwtAuthGuard)
 export class WorkspacesController {
   constructor(private readonly workspacesService: WorkspacesService) { }

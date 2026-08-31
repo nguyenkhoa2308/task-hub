@@ -15,8 +15,11 @@ import { Observable } from 'rxjs';
 import { CommentsService } from './comments.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { ApiCookieAuth, ApiTags } from '@nestjs/swagger';
 
 @Controller('comments')
+@ApiTags('Comments')
+@ApiCookieAuth('access_token')
 @UseGuards(JwtAuthGuard)
 export class CommentsController {
   constructor(private readonly commentsService: CommentsService) {}

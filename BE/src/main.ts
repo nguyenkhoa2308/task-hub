@@ -1,5 +1,6 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
@@ -31,7 +32,17 @@ async function bootstrap() {
     .map((origin) => origin.trim())
     .filter(Boolean);
 
-  app.use(helmet());
+  app.use(helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        scriptSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", 'data:'],
+        fontSrc: ["'self'", 'data:'],
+      },
+    },
+  }));
   app.use(cookieParser());
   app.getHttpAdapter().getInstance().set('trust proxy', isProduction ? 1 : false);
 
@@ -56,6 +67,39 @@ async function bootstrap() {
       forbidNonWhitelisted: true,
     }),
   );
+
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('Task Hub API')
+    .setDescription(
+      'REST API cho Task Hub: xác thực, workspace, dự án, công việc, thành viên, bình luận, thông báo, báo cáo và thùng rác. API sử dụng HttpOnly Cookie; hãy đăng nhập bằng POST /auth/login trước khi thử các endpoint được bảo vệ.',
+    )
+    .setVersion('1.0')
+    .addServer('https://task-hub-rftm.onrender.com', 'Production')
+    .addServer('http://localhost:2308', 'Local')
+    .addCookieAuth('access_token', undefined, 'access_token')
+    .addCookieAuth('refresh_token', undefined, 'refresh_token')
+    .addTag('Health', 'Kiểm tra trạng thái dịch vụ')
+    .addTag('Authentication', 'Đăng ký, đăng nhập và quản lý tài khoản')
+    .addTag('Workspaces', 'Quản lý workspace')
+    .addTag('Projects', 'Quản lý dự án')
+    .addTag('Tasks', 'Quản lý công việc và tệp đính kèm')
+    .addTag('Members', 'Quản lý thành viên và quyền truy cập')
+    .addTag('Comments', 'Bình luận, trả lời và mention')
+    .addTag('Activities', 'Lịch sử hoạt động')
+    .addTag('Notifications', 'Thông báo và luồng realtime')
+    .addTag('Search', 'Tìm kiếm toàn cục')
+    .addTag('Reports', 'Xuất báo cáo')
+    .addTag('Trash', 'Khôi phục và xóa vĩnh viễn')
+    .build();
+  const swaggerDocument = () => SwaggerModule.createDocument(app, swaggerConfig);
+  SwaggerModule.setup('api/docs', app, swaggerDocument, {
+    jsonDocumentUrl: 'api/docs-json',
+    customSiteTitle: 'Task Hub API Docs',
+    swaggerOptions: {
+      persistAuthorization: true,
+      withCredentials: true,
+    },
+  });
 
   app.enableShutdownHooks();
   await app.listen(Number(process.env.PORT));

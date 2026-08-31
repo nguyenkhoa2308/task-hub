@@ -2,8 +2,11 @@ import { Controller, Get, Param, Req, Res, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ReportsService } from './reports.service';
+import { ApiCookieAuth, ApiTags } from '@nestjs/swagger';
 
 @Controller('reports')
+@ApiTags('Reports')
+@ApiCookieAuth('access_token')
 @UseGuards(JwtAuthGuard)
 export class ReportsController {
   constructor(private readonly reportsService: ReportsService) {}

@@ -3,8 +3,11 @@ import { ProjectsService } from './projects.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { ApiCookieAuth, ApiTags } from '@nestjs/swagger';
 
 @Controller('projects')
+@ApiTags('Projects')
+@ApiCookieAuth('access_token')
 @UseGuards(JwtAuthGuard)
 export class ProjectsController {
   constructor(private readonly projectsService: ProjectsService) {}

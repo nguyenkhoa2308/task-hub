@@ -2,6 +2,7 @@ import { Controller, Post, Get, Patch, Body, Query, Res, Inject, Req, HttpExcept
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Request, Response } from 'express';
 import { ARCJET, type ArcjetNest, tokenBucket, validateEmail } from '@arcjet/nest';
+import { ApiTags } from '@nestjs/swagger';
 
 import { AuthService } from './auth.service';
 import { SignUpDto } from './dto/sign-up.dto';
@@ -10,6 +11,7 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RefreshTokenGuard } from './guards/refresh-token.guard';
 
 @Controller('auth')
+@ApiTags('Authentication')
 export class AuthController {
   constructor(
     private readonly authService: AuthService,

@@ -3,8 +3,11 @@ import { MembersService } from './members.service';
 import { InviteMemberDto } from './dto/invite-member.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
+import { ApiCookieAuth, ApiTags } from '@nestjs/swagger';
 
 @Controller('members')
+@ApiTags('Members')
+@ApiCookieAuth('access_token')
 export class MembersController {
   constructor(private readonly membersService: MembersService) {}
 

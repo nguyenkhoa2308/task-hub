@@ -2,6 +2,7 @@ import { BadRequestException, Body, Controller, Delete, Param, Req, UseGuards } 
 import { ArrayMaxSize, ArrayMinSize, IsArray, IsMongoId } from 'class-validator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CleanupService } from './cleanup.service';
+import { ApiCookieAuth, ApiTags } from '@nestjs/swagger';
 
 class PermanentDeleteDto {
   @IsArray()
@@ -12,6 +13,8 @@ class PermanentDeleteDto {
 }
 
 @Controller('trash')
+@ApiTags('Trash')
+@ApiCookieAuth('access_token')
 @UseGuards(JwtAuthGuard)
 export class TrashController {
   constructor(private readonly cleanupService: CleanupService) {}

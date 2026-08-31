@@ -1,8 +1,11 @@
 import { Controller, Get, Param, Query, Req, UseGuards } from '@nestjs/common';
 import { ActivitiesService } from './activities.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { ApiCookieAuth, ApiTags } from '@nestjs/swagger';
 
 @Controller('activities')
+@ApiTags('Activities')
+@ApiCookieAuth('access_token')
 @UseGuards(JwtAuthGuard)
 export class ActivitiesController {
   constructor(private readonly activitiesService: ActivitiesService) {}

@@ -5,8 +5,11 @@ import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Observable, map } from 'rxjs';
+import { ApiCookieAuth, ApiTags } from '@nestjs/swagger';
 
 @Controller('tasks')
+@ApiTags('Tasks')
+@ApiCookieAuth('access_token')
 @UseGuards(JwtAuthGuard)
 export class TasksController {
   constructor(private readonly tasksService: TasksService) {}
