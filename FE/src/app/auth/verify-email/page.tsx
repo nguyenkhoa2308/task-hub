@@ -9,6 +9,7 @@ import { useVerifyEmailMutation, useResendVerificationMutation } from "@/hooks/u
 import { toast } from "sonner";
 import { HelpCircle, ShieldCheck, Lock, Loader2 } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 
 export default function VerifyEmailPage() {
     const searchParams = useSearchParams();
@@ -80,7 +81,10 @@ const { mutate: resendMutate, isPending: isResending } = useResendVerificationMu
             {/* Header */}
             <header className="hidden bg-transparent top-0 z-50 sm:block">
                 <div className="flex justify-between items-center w-full px-6 py-8 max-w-7xl mx-auto">
-                    <div className="text-xl tracking-tight font-bold text-blue-600">Task Hub</div>
+                    <Link href="/" className="flex items-center gap-2.5 text-xl tracking-tight font-bold text-slate-900">
+                        <Image src="/logo.png" alt="" width={36} height={36} className="size-9 rounded-xl object-contain" />
+                        Task Hub
+                    </Link>
                     <div className="flex items-center gap-2">
                         <Button variant="ghost" size="icon" className="text-slate-500 hover:text-blue-600 hover:bg-transparent transition-all active:scale-95 cursor-pointer">
                             <HelpCircle className="w-5 h-5" />

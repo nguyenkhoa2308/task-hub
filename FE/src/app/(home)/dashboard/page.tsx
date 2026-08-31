@@ -72,26 +72,26 @@ export default function DashboardPage() {
   const getPriorityBadge = (priority?: string) => {
     const p = priority?.toLowerCase();
     if (p === "high" || p === "cao") {
-      return <span className="px-2.5 py-0.5 text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200 rounded-full">Cao</span>;
+      return <span className="inline-flex shrink-0 whitespace-nowrap rounded-full border border-rose-200 bg-rose-50 px-2.5 py-0.5 text-xs font-semibold text-rose-700">Cao</span>;
     }
     if (p === "medium" || p === "trung bình") {
-      return <span className="px-2.5 py-0.5 text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200 rounded-full">Trung bình</span>;
+      return <span className="inline-flex shrink-0 whitespace-nowrap rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700">Trung bình</span>;
     }
-    return <span className="px-2.5 py-0.5 text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200 rounded-full">Thấp</span>;
+    return <span className="inline-flex shrink-0 whitespace-nowrap rounded-full border border-slate-200 bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600">Thấp</span>;
   };
 
   const getStatusBadge = (status: string) => {
     const s = status?.toLowerCase();
     if (s === "done" || s === "completed" || s === "hoàn thành") {
-      return <span className="px-2.5 py-0.5 text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md">Hoàn thành</span>;
+      return <span className="inline-flex whitespace-nowrap rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700">Hoàn thành</span>;
     }
     if (s === "in_progress" || s === "in progress" || s === "đang thực hiện") {
-      return <span className="px-2.5 py-0.5 text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200 rounded-md">Đang làm</span>;
+      return <span className="inline-flex whitespace-nowrap rounded-md border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700">Đang làm</span>;
     }
     if (s === "review" || s === "đang review") {
-      return <span className="px-2.5 py-0.5 text-xs font-medium bg-purple-50 text-purple-700 border border-purple-200 rounded-md">Review</span>;
+      return <span className="inline-flex whitespace-nowrap rounded-md border border-purple-200 bg-purple-50 px-2.5 py-0.5 text-xs font-medium text-purple-700">Review</span>;
     }
-    return <span className="px-2.5 py-0.5 text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200 rounded-md">Cần làm</span>;
+    return <span className="inline-flex whitespace-nowrap rounded-md border border-slate-200 bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">Cần làm</span>;
   };
 
   return (
@@ -135,7 +135,7 @@ export default function DashboardPage() {
         ) : (
           <>
             {/* Card 1: Total Projects */}
-            <div className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-colors hover:border-purple-300">
+            <div className="group min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs transition-colors hover:border-purple-300 sm:p-5">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-slate-500 text-xs font-semibold uppercase tracking-wider">Tổng số dự án</span>
                 <div className="p-2 bg-purple-50 text-purple-600 rounded-xl">
@@ -143,7 +143,7 @@ export default function DashboardPage() {
                 </div>
               </div>
               <div>
-                <div className="text-3xl font-extrabold text-slate-900 tracking-tight">{stats?.totalProjects || 0}</div>
+                <div className="text-xl font-extrabold tracking-tight text-slate-900 lg:text-3xl">{stats?.totalProjects || 0}</div>
                 <div className="text-xs text-slate-500 mt-1">
                   <span className="font-semibold text-purple-600">{stats?.inProgressProjects || 0}</span> dự án đang thực hiện
                 </div>
@@ -151,7 +151,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Card 2: Total Tasks */}
-            <div className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-colors hover:border-blue-300">
+            <div className="group min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs transition-colors hover:border-blue-300 sm:p-5">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-slate-500 text-xs font-semibold uppercase tracking-wider">Tổng công việc</span>
                 <div className="p-2 bg-blue-50 text-blue-600 rounded-xl">
@@ -159,8 +159,8 @@ export default function DashboardPage() {
                 </div>
               </div>
               <div>
-                <div className="text-3xl font-extrabold text-slate-900 tracking-tight">{stats?.totalTasks || 0}</div>
-                <div className="text-xs text-slate-500 mt-1 flex items-center gap-1">
+                <div className="text-xl font-extrabold tracking-tight text-slate-900 lg:text-3xl">{stats?.totalTasks || 0}</div>
+                <div className="mt-1 flex flex-wrap items-center gap-x-1 gap-y-0.5 text-xs text-slate-500">
                   <TrendingUp className="size-3.5 text-emerald-600" />
                   <span className="font-semibold text-emerald-600">{stats?.completedTasks || 0}</span> công việc đã hoàn thành
                 </div>
@@ -168,7 +168,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Card 3: To Do */}
-            <div className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-colors hover:border-slate-300">
+            <div className="group min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs transition-colors hover:border-slate-300 sm:p-5">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-slate-500 text-xs font-semibold uppercase tracking-wider">Cần làm</span>
                 <div className="p-2 bg-slate-100 text-slate-600 rounded-xl">
@@ -176,13 +176,13 @@ export default function DashboardPage() {
                 </div>
               </div>
               <div>
-                <div className="text-3xl font-extrabold text-slate-900 tracking-tight">{stats?.todoTasks || 0}</div>
+                <div className="text-xl font-extrabold tracking-tight text-slate-900 lg:text-3xl">{stats?.todoTasks || 0}</div>
                 <div className="text-xs text-slate-500 mt-1">Công việc đang chờ bắt đầu</div>
               </div>
             </div>
 
             {/* Card 4: In Progress */}
-            <div className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-colors hover:border-sky-300">
+            <div className="group min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs transition-colors hover:border-sky-300 sm:p-5">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-slate-500 text-xs font-semibold uppercase tracking-wider">Đang thực hiện</span>
                 <div className="p-2 bg-sky-50 text-sky-600 rounded-xl">
@@ -190,7 +190,7 @@ export default function DashboardPage() {
                 </div>
               </div>
               <div>
-                <div className="text-3xl font-extrabold text-sky-600 tracking-tight">{stats?.inProgressTasks || 0}</div>
+                <div className="text-xl font-extrabold tracking-tight text-sky-600 lg:text-3xl">{stats?.inProgressTasks || 0}</div>
                 <div className="text-xs text-slate-500 mt-1">Công việc đang được xử lý</div>
               </div>
             </div>
@@ -210,18 +210,18 @@ export default function DashboardPage() {
         ) : (
           <>
             {/* Chart 1: Task Trend (Line Chart) */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-2xs space-y-4">
+            <div className="min-w-0 space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs sm:p-6">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div className="flex items-center gap-2">
                   <Activity className="size-5 text-blue-600" />
-                  <div>
+                  <div className="min-w-0">
                     <h2 className="text-base font-bold text-slate-900">Xu hướng công việc</h2>
                     <p className="text-xs text-slate-500">Biến động trạng thái công việc hàng ngày (7 ngày qua)</p>
                   </div>
                 </div>
               </div>
 
-              <div className="h-64 w-full">
+              <div className="h-56 min-w-0 w-full sm:h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={stats?.dailyTaskTrend || []} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
@@ -240,11 +240,11 @@ export default function DashboardPage() {
             </div>
 
             {/* Chart 2: Project Status Breakdown (Pie/Donut Chart) */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-2xs space-y-4">
+            <div className="min-w-0 space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs sm:p-6">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div className="flex items-center gap-2">
                   <PieChartIcon className="size-5 text-purple-600" />
-                  <div>
+                  <div className="min-w-0">
                     <h2 className="text-base font-bold text-slate-900">Trạng thái dự án</h2>
                     <p className="text-xs text-slate-500">Phân bổ trạng thái của tất cả dự án</p>
                   </div>
@@ -257,7 +257,7 @@ export default function DashboardPage() {
                   Chưa có dữ liệu dự án
                 </div>
               ) : (
-                <div className="h-64 w-full">
+                <div className="h-56 min-w-0 w-full sm:h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
@@ -284,18 +284,18 @@ export default function DashboardPage() {
             </div>
 
             {/* Chart 3: Task Priority Distribution (Pie/Donut Chart) */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-2xs space-y-4">
+            <div className="min-w-0 space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs sm:p-6">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div className="flex items-center gap-2">
                   <PieChartIcon className="size-5 text-rose-500" />
-                  <div>
+                  <div className="min-w-0">
                     <h2 className="text-base font-bold text-slate-900">Độ ưu tiên công việc</h2>
                     <p className="text-xs text-slate-500">Phân bổ mức độ ưu tiên công việc</p>
                   </div>
                 </div>
               </div>
 
-              <div className="h-64 w-full">
+              <div className="h-56 min-w-0 w-full sm:h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -321,11 +321,11 @@ export default function DashboardPage() {
             </div>
 
             {/* Chart 4: Workspace Productivity (Bar Chart) */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-2xs space-y-4">
+            <div className="min-w-0 space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs sm:p-6">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div className="flex items-center gap-2">
                   <BarChart3 className="size-5 text-emerald-600" />
-                  <div>
+                  <div className="min-w-0">
                     <h2 className="text-base font-bold text-slate-900">Năng suất Workspace</h2>
                     <p className="text-xs text-slate-500">Số lượng công việc hoàn thành theo từng dự án</p>
                   </div>
@@ -338,11 +338,11 @@ export default function DashboardPage() {
                   Chưa có thông tin năng suất
                 </div>
               ) : (
-                <div className="h-64 w-full">
+                <div className="h-56 min-w-0 w-full sm:h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={stats.workspaceProductivity} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                      <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} tickLine={false} />
+                      <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} tickLine={false} tickFormatter={(value) => String(value).length > 12 ? `${String(value).slice(0, 12)}…` : String(value)} />
                       <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} allowDecimals={false} />
                       <Tooltip
                         contentStyle={{ backgroundColor: "#ffffff", borderColor: "#e2e8f0", borderRadius: "12px", fontSize: "12px" }}
@@ -360,7 +360,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Bottom Grid: Recent Projects | Upcoming | Overdue */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 2xl:grid-cols-3">
         {showSkeleton ? (
           <>
             <Skeleton className="h-96 w-full rounded-2xl bg-slate-100/80" />
@@ -370,7 +370,7 @@ export default function DashboardPage() {
         ) : (
           <>
             {/* Recent Projects (Hiển thị 3 cái + Nút Xem tất cả) */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-2xs space-y-4 flex flex-col justify-between">
+            <div className="flex min-w-0 flex-col justify-between space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs sm:p-6">
               <div>
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
                   <div className="flex items-center gap-2">
@@ -395,12 +395,12 @@ export default function DashboardPage() {
                           href={`/workspaces/${project.workspaceId}/projects/${project._id}`}
                           className="block p-4 bg-slate-50/70 border border-slate-200/80 hover:border-blue-300 rounded-xl transition-all hover:bg-slate-100/60 group"
                         >
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="font-bold text-slate-800 text-sm group-hover:text-blue-600 transition-colors flex items-center gap-1.5">
-                              {project.title}
+                          <div className="mb-2 flex min-w-0 items-center justify-between gap-2">
+                            <div className="flex min-w-0 items-center gap-1.5 text-sm font-bold text-slate-800 transition-colors group-hover:text-blue-600">
+                              <span className="truncate">{project.title}</span>
                               <ChevronRight className="size-3.5 text-slate-400 group-hover:translate-x-1 transition-transform" />
                             </div>
-                            <span className={`px-2.5 py-0.5 text-xs font-semibold border rounded-md ${statusConfig.bg} ${statusConfig.text}`}>
+                            <span className={`shrink-0 whitespace-nowrap rounded-md border px-2.5 py-0.5 text-xs font-semibold ${statusConfig.bg} ${statusConfig.text}`}>
                               {statusConfig.label}
                             </span>
                           </div>
@@ -443,7 +443,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Công việc sắp tới (7 ngày) */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-2xs space-y-4">
+            <div className="min-w-0 space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs sm:p-6">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div className="flex items-center gap-2">
                   <Calendar className="size-5 text-amber-500" />
@@ -463,25 +463,25 @@ export default function DashboardPage() {
                   <p className="text-sm font-medium text-slate-600">Không có công việc nào trong 7 ngày tới</p>
                 </div>
               ) : (
-                <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1">
+                <div className="space-y-3 xl:max-h-[350px] xl:overflow-y-auto xl:pr-1">
                   {stats.upcomingTasks7Days.map((task) => {
                     const daysRemaining = task.dueDate ? differenceInDays(new Date(task.dueDate), new Date()) : 0;
                     return (
                       <div
                         key={task._id}
                         onClick={() => setSelectedTask(task)}
-                        className="p-3.5 bg-slate-50/70 border border-slate-200 hover:border-blue-300 rounded-xl flex items-center justify-between cursor-pointer transition-all hover:bg-slate-100/60"
+                        className="flex cursor-pointer flex-col items-stretch gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 transition-all hover:border-blue-300 hover:bg-slate-100/60 sm:flex-row sm:items-center sm:justify-between"
                       >
                         <div className="space-y-1 min-w-0 flex-1 mr-2">
                           <div className="font-bold text-sm text-slate-800 truncate">{task.title}</div>
-                          <div className="text-xs text-slate-500 flex items-center gap-1.5">
+                          <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-xs text-slate-500">
                             <span className="text-blue-600 font-semibold truncate">{task.project?.title || "Dự án"}</span>
                             <span>•</span>
                             {getPriorityBadge(task.priority)}
                           </div>
                         </div>
-                        <div className="text-right space-y-1 shrink-0">
-                          <div className={`text-xs font-bold flex items-center justify-end gap-1 ${daysRemaining <= 1 ? "text-amber-600" : "text-slate-700"}`}>
+                        <div className="flex shrink-0 items-center justify-between gap-2 sm:block sm:space-y-1 sm:text-right">
+                          <div className={`flex items-center gap-1 text-xs font-bold sm:justify-end ${daysRemaining <= 1 ? "text-amber-600" : "text-slate-700"}`}>
                             <Clock className="size-3" />
                             {daysRemaining <= 0 ? "Hôm nay" : `${daysRemaining} ngày`}
                           </div>
@@ -495,11 +495,11 @@ export default function DashboardPage() {
             </div>
 
             {/* Công việc quá hạn */}
-            <div className="bg-white border border-rose-200/60 rounded-2xl p-6 shadow-2xs space-y-4">
+            <div className="min-w-0 space-y-4 rounded-2xl border border-rose-200/60 bg-white p-4 shadow-2xs sm:p-6">
               <div className="flex items-center justify-between border-b border-rose-100/80 pb-3">
                 <div className="flex items-center gap-2">
                   <AlertTriangle className="size-5 text-rose-500" />
-                  <div>
+                  <div className="min-w-0">
                     <h2 className="text-base font-bold text-rose-700">Quá hạn</h2>
                     <p className="text-xs text-slate-500">Công việc chưa hoàn thành đã qua hạn</p>
                   </div>
@@ -517,28 +517,28 @@ export default function DashboardPage() {
                   <p className="text-sm font-medium text-slate-600">Không có công việc nào bị quá hạn</p>
                 </div>
               ) : (
-                <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1">
+                <div className="space-y-3 xl:max-h-[350px] xl:overflow-y-auto xl:pr-1">
                   {stats.overdueTasksList.map((task) => {
                     const overdueDays = task.dueDate ? differenceInDays(new Date(), new Date(task.dueDate)) : 0;
                     return (
                       <div
                         key={task._id}
                         onClick={() => setSelectedTask(task)}
-                        className="p-3.5 bg-rose-50/40 border border-rose-200/80 hover:border-rose-400 rounded-xl flex items-center justify-between cursor-pointer transition-all hover:bg-rose-50/80"
+                        className="flex cursor-pointer flex-col items-stretch gap-3 rounded-xl border border-rose-200/80 bg-rose-50/40 p-3.5 transition-all hover:border-rose-400 hover:bg-rose-50/80 sm:flex-row sm:items-center sm:justify-between"
                       >
                         <div className="space-y-1 min-w-0 flex-1 mr-2">
                           <div className="font-bold text-sm text-slate-900 truncate flex items-center gap-1.5">
                             <AlertTriangle className="size-3.5 text-rose-600 shrink-0" />
                             <span className="truncate">{task.title}</span>
                           </div>
-                          <div className="text-xs text-slate-500 flex items-center gap-1.5">
+                          <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-xs text-slate-500">
                             <span className="text-blue-600 font-semibold truncate">{task.project?.title || "Dự án"}</span>
                             <span>•</span>
                             {getPriorityBadge(task.priority)}
                           </div>
                         </div>
-                        <div className="text-right space-y-1 shrink-0">
-                          <div className="text-xs font-extrabold text-rose-600 flex items-center justify-end gap-1">
+                        <div className="flex shrink-0 items-center justify-between gap-2 sm:block sm:space-y-1 sm:text-right">
+                          <div className="flex items-center gap-1 text-xs font-extrabold text-rose-600 sm:justify-end">
                             <Clock className="size-3" />
                             <span>{overdueDays > 0 ? `${overdueDays} ngày` : "Hôm nay"}</span>
                           </div>

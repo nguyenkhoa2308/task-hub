@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 
 import type { WorkSpace } from "@/types";
@@ -12,7 +12,7 @@ import DashboardHeader from "@/components/dashboard/dashboard-header";
 import DashboardSidebar from "@/components/dashboard/dashboard-sidebar";
 import CreateWorkspace from "@/components/workspace/create-workspace";
 
-export default function DashboardLayout({
+function DashboardLayoutContent({
   children,
 }: Readonly<{
   children: React.ReactNode;
@@ -20,7 +20,7 @@ export default function DashboardLayout({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { data: workspaces = [] } = useGetWorkspaces();
+  const { data: workspaces = [], isSuccess: hasLoadedWorkspaces } = useGetWorkspaces();
 
   const { isLoading, isAuthenticated } = useAppSelector((state) => state.auth);
   const [isCreateWorkSpace, setIsCreateWorkSpace] = useState(false);
@@ -56,6 +56,22 @@ export default function DashboardLayout({
       }
     }
   }, [pathname, searchParams, workspaces]);
+
+  useEffect(() => {
+    if (!hasLoadedWorkspaces || !currentWorkSpace?._id || currentWorkSpace._id === "all") return;
+    const stillExists = workspaces.some((workspace: any) => workspace._id === currentWorkSpace._id);
+    if (stillExists) return;
+
+    const removedWorkspaceId = currentWorkSpace._id;
+    setCurrentWorkSpace(null);
+    if (pathname === "/dashboard" && searchParams.get("workspaceId") === removedWorkspaceId) {
+      router.replace("/dashboard");
+    } else if (pathname === "/members" && searchParams.get("workspaceId") === removedWorkspaceId) {
+      router.replace("/members");
+    } else if (pathname.startsWith(`/workspaces/${removedWorkspaceId}`)) {
+      router.replace("/workspaces");
+    }
+  }, [currentWorkSpace, hasLoadedWorkspaces, pathname, router, searchParams, workspaces]);
 
   useEffect(() => {
     setIsMobileSidebarOpen(false);
@@ -119,6 +135,18 @@ export default function DashboardLayout({
         setIsCreateWorkSpace={setIsCreateWorkSpace}
       />
     </div>
+  );
+}
+
+export default function DashboardLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <Suspense fallback={<Loading text="Đang tải..." />}>
+      <DashboardLayoutContent>{children}</DashboardLayoutContent>
+    </Suspense>
   );
 }
 

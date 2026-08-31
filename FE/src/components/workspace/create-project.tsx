@@ -115,11 +115,15 @@ export const CreateProjectDialog = ({
         onSuccess: () => {
           toast.success("Tạo project thành công!");
           queryClient.invalidateQueries({ queryKey: ["workspace", workspaceId] });
+          queryClient.invalidateQueries({ queryKey: ["projects", workspaceId] });
           form.reset();
           onOpenChange(false);
         },
-        onError: (error: any) => {
-          const errorMessage = error?.response?.data?.message || error?.message || "Đã có lỗi xảy ra";
+        onError: (error: Error) => {
+          const requestError = error as Error & {
+            response?: { data?: { message?: string } };
+          };
+          const errorMessage = requestError.response?.data?.message || error.message || "Đã có lỗi xảy ra";
           toast.error(errorMessage);
           console.log(error);
         },

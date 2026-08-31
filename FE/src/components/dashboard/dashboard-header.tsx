@@ -149,8 +149,8 @@ export default function DashboardHeader({
 
   return (
     <div className="bg-background sticky top-0 z-40 border-b">
-      <div className="flex h-14 items-center justify-between px-4 sm:px-6 lg:px-8 py-4">
-        <div className="flex min-w-0 items-center gap-2">
+      <div className="flex h-14 items-center justify-between gap-2 px-3 py-4 sm:px-6 lg:px-8">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
           <Button
             type="button"
             variant="ghost"
@@ -166,24 +166,24 @@ export default function DashboardHeader({
             <DropdownMenuTrigger asChild>
               <Button
                 variant="outline"
-                className="inline-flex min-w-0 lg:w-auto w-40 items-center gap-2.5 px-3 py-1.5 h-9 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-medium transition-all shadow-xs select-none cursor-pointer"
+                className="inline-flex h-9 min-w-0 max-w-[150px] items-center gap-2 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 font-medium text-slate-700 shadow-xs transition-all hover:bg-slate-50 sm:max-w-[220px] sm:px-3 lg:max-w-[260px]"
               >
                 {selectedWorkspace ? (
                   <>
                     {selectedWorkspace.color && (
-                      <div className="flex flex-1 justify-end">
+                      <div className="shrink-0">
                         <WorksapceAvatar
                           color={selectedWorkspace.color}
                           name={selectedWorkspace.name}
                         />
                       </div>
                     )}
-                    <span className="text-sm font-semibold max-w-[150px] truncate">{selectedWorkspace.name}</span>
+                    <span className="min-w-0 flex-1 truncate text-sm font-semibold">{selectedWorkspace.name}</span>
                   </>
                 ) : (
                   <span className="text-sm font-medium text-slate-500">Chọn Workspace</span>
                 )}
-                <ChevronDown className={cn("h-4 w-4 text-slate-400 shrink-0 ml-1 transition-transform duration-200", isDropdownOpen ? "rotate-0" : "rotate-180")} />
+                <ChevronDown className={cn("size-4 shrink-0 text-slate-400 transition-transform duration-200", isDropdownOpen ? "rotate-0" : "rotate-180")} />
               </Button>
             </DropdownMenuTrigger>
 
@@ -231,7 +231,7 @@ export default function DashboardHeader({
           </DropdownMenu>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           <div className="relative hidden md:block">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
             <input ref={searchInputRef} value={searchText} onChange={(event) => { setSearchText(event.target.value); setIsSearchOpen(true); }} onFocus={() => setIsSearchOpen(true)} onBlur={() => window.setTimeout(() => setIsSearchOpen(false), 150)} placeholder="Tìm workspace, dự án, công việc" className="h-9 w-72 rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-12 text-xs outline-none transition-all focus:w-96 focus:border-blue-300 focus:bg-white focus:ring-2 focus:ring-blue-100" />
@@ -385,16 +385,16 @@ export default function DashboardHeader({
           <div className="hidden lg:block">
             <DropdownMenu open={isDesktopProfileOpen} onOpenChange={setIsDesktopProfileOpen}>
               <DropdownMenuTrigger asChild>
-                <button type="button" className="flex h-9 items-center gap-2 rounded-lg border border-transparent px-1.5 text-left transition-colors hover:border-slate-200 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30">
+                <button type="button" className="flex h-11 items-center gap-2 rounded-lg border border-transparent px-2 py-1.5 text-left transition-colors hover:border-slate-200 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30">
                   <Avatar className="size-8 border border-slate-200">
                     <AvatarImage src={user?.profileImage} alt={user?.name} />
                     <AvatarFallback className="bg-slate-100 text-xs font-bold text-slate-700">
                       {(user?.name || user?.email || "U").charAt(0).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
-                  <div className="hidden max-w-32 leading-tight lg:block">
-                    <p className="truncate text-xs font-semibold text-slate-800">{user?.name || "Tài khoản"}</p>
-                    <p className="mt-0.5 truncate text-[10px] text-slate-400">Tài khoản cá nhân</p>
+                  <div className="hidden max-w-40 leading-tight lg:block">
+                    <p className="truncate text-sm font-bold text-slate-800">{user?.name || "Tài khoản"}</p>
+                    <p className="mt-0.5 truncate text-xs text-slate-500">Tài khoản cá nhân</p>
                   </div>
                   <ChevronDown className="hidden size-3.5 text-slate-400 lg:block" />
                 </button>
