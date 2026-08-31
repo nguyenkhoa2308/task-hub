@@ -94,8 +94,8 @@ const { mutate: resendMutate, isPending: isResending } = useResendVerificationMu
             </header>
 
             {/* Main Content */}
-            <main className="flex flex-1 items-start justify-center sm:items-center sm:px-4 sm:py-8">
-                <Card className="min-h-dvh w-full max-w-[440px] rounded-none border-0 bg-white py-7 shadow-none sm:min-h-0 sm:rounded-2xl sm:border sm:border-[#c3c6d7]/20 sm:shadow-[0_20px_25px_-5px_rgba(0,0,0,0.05),0_10px_10px_-5px_rgba(0,0,0,0.02)]">
+            <main className="flex flex-1 items-center justify-center px-4 py-6 sm:py-8">
+                <Card className="w-full max-w-[440px] rounded-2xl border border-[#c3c6d7]/20 bg-white py-7 shadow-[0_20px_25px_-5px_rgba(0,0,0,0.05),0_10px_10px_-5px_rgba(0,0,0,0.02)]">
                     <CardHeader className="px-5 text-center sm:px-6">
                         <div className="flex justify-center mb-8">
                             <div className="w-14 h-14 bg-[#eff4ff] rounded-2xl flex items-center justify-center text-[#004ac6] rotate-3 hover:rotate-0 transition-transform duration-500">
