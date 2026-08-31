@@ -52,9 +52,9 @@ export function PendingMembersDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md rounded-2xl p-6">
-        <DialogHeader className="space-y-1">
-          <DialogTitle className="font-extrabold text-xl flex items-center gap-2 text-slate-800">
+      <DialogContent className="max-w-md rounded-2xl p-6 max-lg:!fixed max-lg:!inset-y-0 max-lg:!right-0 max-lg:!left-auto max-lg:!top-0 max-lg:!flex max-lg:!h-dvh max-lg:!w-full max-lg:!max-w-none max-lg:!translate-x-0 max-lg:!translate-y-0 max-lg:!flex-col max-lg:!gap-4 max-lg:!overflow-y-auto max-lg:!rounded-none max-lg:!p-4 max-lg:!duration-300 max-lg:data-open:slide-in-from-right-full max-lg:data-open:zoom-in-100 max-lg:data-closed:slide-out-to-right-full max-lg:data-closed:zoom-out-100 sm:max-lg:!w-[480px]">
+        <DialogHeader className="shrink-0 space-y-1 pr-9">
+          <DialogTitle className="flex items-center gap-2 text-base font-extrabold leading-6 text-slate-800 sm:text-xl">
             <div className="p-2 rounded-xl bg-amber-50 text-amber-600">
               <UserCheck className="h-5 w-5" />
             </div>
@@ -65,7 +65,7 @@ export function PendingMembersDialog({
           </p>
         </DialogHeader>
 
-        <div className="mt-3 space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+        <div className="mt-1 min-h-0 flex-1 space-y-3 overflow-y-auto pr-1 sm:mt-3 sm:max-h-[60vh]">
           {isLoading ? (
             <div className="space-y-3">
               {[1, 2].map((i) => (
@@ -94,7 +94,7 @@ export function PendingMembersDialog({
               return (
                 <div
                   key={u._id || member._id}
-                  className="flex items-center justify-between p-3 bg-slate-50/70 border border-slate-200/60 rounded-xl hover:bg-slate-50 transition-all"
+                  className="flex flex-col gap-3 rounded-xl border border-slate-200/60 bg-slate-50/70 p-3 transition-all hover:bg-slate-50 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div className="flex items-center gap-3 min-w-0 pr-2">
                     <Avatar className="h-9 w-9 border border-slate-200 shrink-0">
@@ -109,12 +109,12 @@ export function PendingMembersDialog({
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1.5 shrink-0">
+                  <div className="flex w-full shrink-0 items-center gap-1.5 sm:w-auto">
                     <Button
                       size="sm"
                       disabled={isApproving || isRejecting}
                       onClick={() => handleApprove(u._id, u.name)}
-                      className="h-8 px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold gap-1 cursor-pointer"
+                      className="h-8 flex-1 px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold gap-1 cursor-pointer sm:flex-none"
                     >
                       <Check className="size-3.5" />
                       Duyệt
@@ -124,7 +124,7 @@ export function PendingMembersDialog({
                       variant="outline"
                       disabled={isApproving || isRejecting}
                       onClick={() => handleReject(u._id, u.name)}
-                      className="h-8 px-2.5 rounded-lg border-rose-200 hover:bg-rose-50 text-rose-600 text-xs font-bold gap-1 cursor-pointer"
+                      className="h-8 flex-1 px-2.5 rounded-lg border-rose-200 hover:bg-rose-50 text-rose-600 text-xs font-bold gap-1 cursor-pointer sm:flex-none"
                     >
                       <X className="size-3.5" />
                       Từ chối

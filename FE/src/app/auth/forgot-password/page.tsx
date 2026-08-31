@@ -58,24 +58,24 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen w-full flex flex-col bg-gray-50 selection:bg-blue-800/10 font-sans">
+    <div className="min-h-dvh w-full flex flex-col bg-gray-50 selection:bg-blue-800/10 font-sans">
       {/* Main Content */}
-      <main className="flex-grow flex items-center justify-center px-4 py-8">
-        <Card className="w-full max-w-md py-12 bg-white rounded-2xl shadow-[0_20px_25px_-5px_rgba(0,0,0,0.05),0_10px_10px_-5px_rgba(0,0,0,0.02)] border border-gray-300/20">
-          <CardHeader className="text-center">
+      <main className="flex flex-1 items-start justify-center sm:items-center sm:px-4 sm:py-8">
+        <Card className="min-h-dvh w-full max-w-md rounded-none border-0 bg-white py-8 shadow-none sm:min-h-0 sm:rounded-2xl sm:border sm:border-gray-300/20 sm:py-10 sm:shadow-[0_20px_25px_-5px_rgba(0,0,0,0.05),0_10px_10px_-5px_rgba(0,0,0,0.02)]">
+          <CardHeader className="px-5 text-center sm:px-6">
             <div className="flex justify-center mb-4">
               <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 rotate-3 hover:rotate-0 transition-transform duration-500">
                 <Mail className="w-7 h-7" />
               </div>
             </div>
-            <CardTitle className="text-2xl text-primary font-bold">
+            <CardTitle className="text-xl font-bold text-primary sm:text-2xl">
               Quên mật khẩu?
             </CardTitle>
             <CardDescription className="text-gray-500 leading-relaxed">
               Nhập email đã đăng ký để nhận mã OTP đặt lại mật khẩu
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-5 sm:px-6">
             <form onSubmit={form.handleSubmit(handleOnSubmit)} noValidate>
               <FieldGroup>
                 <Controller
@@ -89,8 +89,10 @@ export default function ForgotPasswordPage() {
                           {...field}
                           id={field.name}
                           type="email"
+                          autoComplete="email"
                           placeholder="example@email.com"
                           aria-invalid={fieldState.invalid}
+                          className="h-11 text-base sm:text-sm"
                         />
                         {fieldState.invalid && (
                           <FieldError errors={[fieldState.error]} />

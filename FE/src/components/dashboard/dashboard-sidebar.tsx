@@ -3,15 +3,16 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import {
-  CheckCircle2,
+  Archive,
   ChevronsLeft,
   ChevronsRight,
   LayoutDashboard,
   ListCheck,
   LogOut,
-  Settings,
   Users,
   Wrench,
+  Trash2,
+  X,
 } from "lucide-react";
 
 import type { WorkSpace } from "@/types";
@@ -27,8 +28,12 @@ import SidebarNav from "./sidebar-nav";
 
 export default function DashboardSidebar({
   currentWorkspace,
+  isMobileOpen = false,
+  onMobileClose,
 }: {
   currentWorkspace: WorkSpace | null;
+  isMobileOpen?: boolean;
+  onMobileClose?: () => void;
 }) {
   const { user } = useAppSelector((state) => state.auth);
   const dispatch = useAppDispatch();
@@ -40,34 +45,34 @@ export default function DashboardSidebar({
 
   const navItems = [
     {
-      title: "Dashboard",
+      title: "Tổng quan",
       href: "/dashboard",
       icon: LayoutDashboard,
     },
     {
-      title: "Workspaces",
+      title: "Workspace",
       href: "/workspaces",
       icon: Users,
     },
     {
-      title: "My Tasks",
+      title: "Công việc",
       href: "/my-tasks",
       icon: ListCheck,
     },
     {
-      title: "Members",
+      title: "Thành viên",
       href: "/members",
       icon: Users,
     },
     {
-      title: "Archived",
+      title: "Lưu trữ",
       href: "/archived",
-      icon: CheckCircle2,
+      icon: Archive,
     },
     {
-      title: "Settings",
-      href: "/settings",
-      icon: Settings,
+      title: "Thùng rác",
+      href: "/trash",
+      icon: Trash2,
     },
   ];
 
@@ -80,31 +85,41 @@ export default function DashboardSidebar({
     });
   };
 
-  return (
+  return (<>
+    <button
+      type="button"
+      aria-label="Đóng menu"
+      onClick={onMobileClose}
+      className={cn(
+        "fixed inset-0 z-50 bg-slate-950/45 backdrop-blur-[1px] transition-opacity duration-300 lg:hidden",
+        isMobileOpen ? "opacity-100" : "pointer-events-none opacity-0",
+      )}
+    />
     <div
       className={cn(
-        "flex flex-col border-r bg-sidebar transition-all duration-300",
-        isCollapsed ? "w-16 md:w-[80px]" : "w-16 md:w-[200px]",
-        // isMobile ? "absolute inset-y-0 left-0 z-50 h-full" : "",
+        "fixed inset-y-0 left-0 z-[60] flex w-[86vw] max-w-[340px] flex-col border-r bg-sidebar shadow-2xl transition-transform duration-300 ease-out lg:static lg:z-auto lg:max-w-none lg:translate-x-0 lg:shadow-none",
+        isMobileOpen ? "translate-x-0" : "-translate-x-full",
+        isCollapsed ? "lg:w-[80px]" : "lg:w-[200px]",
       )}
     >
       <div className="flex h-14 items-center border-b px-4 mb-4">
         <Link href={"/dashboard"} className="flex items-center">
-          {!isCollapsed && (
-            <div className="flex items-center gap-2">
+          <div className={cn("items-center gap-2", isCollapsed ? "flex lg:hidden" : "flex")}>
               <Wrench className="size-6 text-blue-600" />
-              <span className="font-bold text-lg hidden md:block">
+              <span className="text-lg font-bold">
                 TaskHub
               </span>
-            </div>
-          )}
+          </div>
 
-          {isCollapsed && <Wrench className="size-6 text-blue-600" />}
+          {isCollapsed && <Wrench className="hidden size-6 text-blue-600 lg:block" />}
         </Link>
+        <Button variant="ghost" size="icon" className="ml-auto lg:hidden" onClick={onMobileClose} aria-label="Đóng menu">
+          <X className="size-5" />
+        </Button>
         <Button
           variant="ghost"
           size="icon"
-          className="ml-auto hidden md:flex items-center justify-center"
+          className="ml-auto hidden lg:flex items-center justify-center"
           onClick={() => setIsCollapsed(!isCollapsed)}
         >
           {isCollapsed ? (
@@ -121,6 +136,8 @@ export default function DashboardSidebar({
           isCollapsed={isCollapsed}
           className={cn(isCollapsed && "")}
           currentWorkspace={currentWorkspace}
+          mobileExpanded
+          onNavigate={onMobileClose}
         />
       </ScrollArea>
 
@@ -132,13 +149,10 @@ export default function DashboardSidebar({
           className="py-5 text-red-500 hover:text-red-700 hover:bg-red-800/20 w-full justify-start font-bold"
         >
           <LogOut className={cn("size-5 ml-1", isCollapsed ? "" : "")} />
-          {isCollapsed ? (
-            <span className="sr-only">Đăng xuất</span>
-          ) : (
-            <span className="">Đăng xuất</span>
-          )}
+          <span className={cn(isCollapsed && "lg:sr-only")}>Đăng xuất</span>
         </Button>
       </div>
     </div>
+  </>
   );
 }

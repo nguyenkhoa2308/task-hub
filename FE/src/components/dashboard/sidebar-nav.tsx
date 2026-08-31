@@ -16,6 +16,8 @@ interface SidebarNavProps extends React.HtmlHTMLAttributes<HTMLElement> {
   isCollapsed: boolean;
   className?: string;
   currentWorkspace: WorkSpace | null;
+  mobileExpanded?: boolean;
+  onNavigate?: () => void;
 }
 
 export default function SidebarNav({
@@ -23,6 +25,8 @@ export default function SidebarNav({
   isCollapsed,
   className,
   currentWorkspace,
+  mobileExpanded = false,
+  onNavigate,
   ...props
 }: SidebarNavProps) {
   const pathname = usePathname();
@@ -42,6 +46,7 @@ export default function SidebarNav({
           } else {
             router.push(el.href);
           }
+          onNavigate?.();
         };
 
         return (
@@ -56,7 +61,7 @@ export default function SidebarNav({
           >
             <Icon className="size-5 ml-1" />
             {isCollapsed ? (
-              <span className="sr-only">{el.title}</span>
+              <span className={cn(mobileExpanded ? "ml-2 lg:sr-only" : "sr-only")}>{el.title}</span>
             ) : (
               <span className="ml-2">{el.title}</span>
             )}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -47,6 +47,13 @@ import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { ProjectStatus } from "@/types";
 import { TaskList } from "@/components/project/task-list";
+import { useSSETasks } from "@/hooks/use-task-sse";
+import { ProjectStatusConfirmDialog } from "@/components/project/project-status-confirm-dialog";
+import { useGetProjectActivities } from "@/hooks/use-activity";
+import { ProjectActivityHistory } from "@/components/project/project-activity-history";
+import { useGetTaskById } from "@/hooks/use-task";
+import { TaskDetailModal } from "@/components/task/task-detail-modal";
+import { ExportReportButton } from "@/components/report/export-report-button";
 // Cấu hình nhãn và màu sắc Trạng thái
 const STATUS_CONFIG: Record<
   string,
@@ -96,14 +103,26 @@ export default function ProjectDetailPage() {
   const queryClient = useQueryClient();
   const workspaceId = params.id;
   const projectId = params.projectId;
+  const searchParams = useSearchParams();
+  const linkedTaskId = searchParams.get("taskId") || "";
+  const { data: linkedTask } = useGetTaskById(linkedTaskId, Boolean(linkedTaskId));
+
+  useSSETasks(projectId);
 
   const [activeTab, setActiveTab] = useState<"board" | "list" | "members" | "settings">("board");
   const [isProjectMembersOpen, setIsProjectMembersOpen] = useState(false);
+  const [isStatusConfirmOpen, setIsStatusConfirmOpen] = useState(false);
 
   const { data: project, isLoading, isError } = useGetProjectById(projectId);
   const { data: workspaceData } = useGetWorkspaceById(workspaceId);
   const { mutate: updateProjectMutate, isPending: isUpdating } = useUpdateProject();
   const { mutate: deleteProjectMutate, isPending: isDeleting } = useDeleteProject();
+  const {
+    data: projectActivities = [],
+    hasNextPage: hasMoreProjectActivities,
+    fetchNextPage: loadMoreProjectActivities,
+    isFetchingNextPage: isLoadingMoreProjectActivities,
+  } = useGetProjectActivities(projectId, activeTab === "settings");
 
   const handleUpdateProjectData = async (updateData: any) => {
     return new Promise((resolve, reject) => {
@@ -190,8 +209,7 @@ export default function ProjectDetailPage() {
     });
   };
 
-  const handleSaveSettings = (e: React.FormEvent) => {
-    e.preventDefault();
+  const saveProjectSettings = () => {
     if (!editTitle.trim()) {
       toast.error("Tên dự án không được để trống");
       return;
@@ -212,14 +230,25 @@ export default function ProjectDetailPage() {
       {
         onSuccess: () => {
           toast.success("Đã lưu thông tin cài đặt dự án!");
+          setIsStatusConfirmOpen(false);
           queryClient.invalidateQueries({ queryKey: ["project", projectId] });
           queryClient.invalidateQueries({ queryKey: ["projects", workspaceId] });
+          queryClient.invalidateQueries({ queryKey: ["project-activities", projectId] });
         },
         onError: (err: any) => {
           toast.error(err?.message || "Không thể cập nhật cài đặt dự án");
         },
       }
     );
+  };
+
+  const handleSaveSettings = (e: React.FormEvent) => {
+    e.preventDefault();
+    if ((projectData?.status || "PLANNING") !== editStatus) {
+      setIsStatusConfirmOpen(true);
+      return;
+    }
+    saveProjectSettings();
   };
 
   const handleToggleArchive = () => {
@@ -233,16 +262,22 @@ export default function ProjectDetailPage() {
         onSuccess: () => {
           toast.success(isArchivedNow ? "Đã lưu trữ dự án" : "Đã hủy lưu trữ dự án");
           queryClient.invalidateQueries({ queryKey: ["project", projectId] });
+          queryClient.invalidateQueries({ queryKey: ["projects", workspaceId] });
+          queryClient.invalidateQueries({ queryKey: ["workspace", workspaceId] });
+          queryClient.invalidateQueries({ queryKey: ["archived-projects"] });
         },
       }
     );
   };
 
   const handleDeleteProject = () => {
-    if (confirm("Bạn có chắc chắn muốn xóa vĩnh viễn dự án này không? Tất cả công việc và dữ liệu sẽ bị xóa hoàn toàn.")) {
+    if (confirm("Chuyển dự án này vào thùng rác? Bạn có thể khôi phục dự án và toàn bộ công việc bên trong sau đó.")) {
       deleteProjectMutate(projectId, {
         onSuccess: () => {
-          toast.success("Đã xóa dự án thành công");
+          toast.success("Đã chuyển dự án vào thùng rác");
+          queryClient.invalidateQueries({ queryKey: ["trash-projects"] });
+          queryClient.invalidateQueries({ queryKey: ["projects", workspaceId] });
+          queryClient.invalidateQueries({ queryKey: ["workspace", workspaceId] });
           router.push(`/workspaces/${workspaceId}`);
         },
         onError: (err: any) => {
@@ -326,15 +361,15 @@ export default function ProjectDetailPage() {
         </div>
 
         {/* Title & Action Buttons */}
-        <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-          <div className="flex items-start gap-4">
+        <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
+          <div className="flex min-w-0 items-start gap-3 sm:gap-4">
             <div className="size-12 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20 shrink-0">
               <FolderKanban className="size-6" />
             </div>
 
-            <div className="space-y-1">
+            <div className="min-w-0 space-y-1">
               <div className="flex items-center gap-3 flex-wrap">
-                <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight">
+                <h1 className="break-words text-xl font-extrabold tracking-tight text-slate-800 sm:text-2xl">
                   {projectData?.title || projectData?.name}
                 </h1>
                 <span
@@ -371,39 +406,39 @@ export default function ProjectDetailPage() {
           </div>
 
           {/* Top Actions */}
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="grid w-full grid-cols-2 gap-2 md:flex md:w-auto md:shrink-0">
             <Button
               variant="outline"
               size="sm"
               onClick={() => setIsProjectMembersOpen(true)}
-              className="border-slate-200 font-semibold gap-1.5 cursor-pointer hover:bg-slate-50"
+              className="min-w-0 gap-1.5 border-slate-200 px-2 font-semibold cursor-pointer hover:bg-slate-50 sm:px-3"
             >
               <Users className="size-4 text-blue-600" />
-              Thành viên dự án ({membersList.length})
+              <span className="truncate">Thành viên ({membersList.length})</span>
             </Button>
 
             <Button
               variant="outline"
               size="sm"
               onClick={() => setActiveTab("settings")}
-              className={`border-slate-200 font-semibold gap-1.5 cursor-pointer ${activeTab === "settings" ? "bg-slate-100 border-slate-300 text-blue-600" : ""
+              className={`min-w-0 gap-1.5 border-slate-200 px-2 font-semibold cursor-pointer sm:px-3 ${activeTab === "settings" ? "bg-slate-100 border-slate-300 text-blue-600" : ""
                 }`}
             >
               <Settings className="size-4" />
-              Cài đặt Dự án
+              <span className="truncate">Cài đặt</span>
             </Button>
           </div>
         </div>
 
         {/* Project Meta Info Row */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-slate-100">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 pt-4 border-t border-slate-100">
           <div className="flex items-center gap-3 p-3.5 bg-slate-50/80 rounded-2xl border border-slate-200/70">
             <div className="size-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
               <Calendar className="size-5" />
             </div>
             <div>
               <p className="text-xs font-semibold text-slate-400">Ngày bắt đầu</p>
-              <p className="text-base font-bold text-slate-800">{formatDate(projectData.startDate)}</p>
+              <p className="text-sm lg:text-base font-bold text-slate-800">{formatDate(projectData.startDate)}</p>
             </div>
           </div>
 
@@ -413,7 +448,7 @@ export default function ProjectDetailPage() {
             </div>
             <div>
               <p className="text-xs font-semibold text-slate-400">Hạn hoàn thành</p>
-              <p className="text-base font-bold text-slate-800">{formatDate(projectData.dueDate)}</p>
+              <p className="text-sm lg:text-base font-bold text-slate-800">{formatDate(projectData.dueDate)}</p>
             </div>
           </div>
 
@@ -439,22 +474,23 @@ export default function ProjectDetailPage() {
 
       {/* Main Content Tabs Header */}
       <div className="space-y-6">
-        <div className="flex items-center justify-between border-b border-slate-200/80 pb-px overflow-x-auto">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between overflow-x-auto border-b border-slate-200/80 pb-px">
+          <div className="flex w-full items-center gap-0 lg:w-auto lg:gap-2">
             <button
               onClick={() => setActiveTab("board")}
-              className={`flex items-center gap-2 px-4 py-2.5 font-bold text-sm border-b-2 transition-all cursor-pointer ${activeTab === "board"
+              className={`flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap px-1 py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer lg:flex-none lg:gap-2 lg:px-4 lg:text-sm ${activeTab === "board"
                 ? "border-blue-600 text-blue-600 bg-blue-50/50 rounded-t-xl"
                 : "border-transparent text-slate-500 hover:text-slate-800"
                 }`}
             >
               <LayoutGrid className="size-4" />
-              Bảng Kanban
+              <span className="lg:hidden">Công việc</span>
+              <span className="hidden lg:inline">Bảng Kanban</span>
             </button>
 
             <button
               onClick={() => setActiveTab("list")}
-              className={`flex items-center gap-2 px-4 py-2.5 font-bold text-sm border-b-2 transition-all cursor-pointer ${activeTab === "list"
+              className={`hidden lg:flex items-center gap-2 px-4 py-2.5 font-bold text-sm border-b-2 transition-all cursor-pointer ${activeTab === "list"
                 ? "border-blue-600 text-blue-600 bg-blue-50/50 rounded-t-xl"
                 : "border-transparent text-slate-500 hover:text-slate-800"
                 }`}
@@ -465,41 +501,44 @@ export default function ProjectDetailPage() {
 
             <button
               onClick={() => setActiveTab("members")}
-              className={`flex items-center gap-2 px-4 py-2.5 font-bold text-sm border-b-2 transition-all cursor-pointer ${activeTab === "members"
+              className={`flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap px-1 py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer lg:flex-none lg:gap-2 lg:px-4 lg:text-sm ${activeTab === "members"
                 ? "border-blue-600 text-blue-600 bg-blue-50/50 rounded-t-xl"
                 : "border-transparent text-slate-500 hover:text-slate-800"
                 }`}
             >
               <Users className="size-4" />
-              Thành viên ({membersList.length})
+              <span>Thành viên</span>
             </button>
 
             <button
               onClick={() => setActiveTab("settings")}
-              className={`flex items-center gap-2 px-4 py-2.5 font-bold text-sm border-b-2 transition-all cursor-pointer ${activeTab === "settings"
+              className={`flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap px-1 py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer lg:flex-none lg:gap-2 lg:px-4 lg:text-sm ${activeTab === "settings"
                 ? "border-blue-600 text-blue-600 bg-blue-50/50 rounded-t-xl"
                 : "border-transparent text-slate-500 hover:text-slate-800"
                 }`}
             >
               <Settings className="size-4" />
-              Cài đặt Dự án
+              <span className="lg:hidden">Cài đặt</span><span className="hidden lg:inline">Cài đặt Dự án</span>
             </button>
           </div>
         </div>
 
         {/* TAB 1: KANBAN BOARD */}
         {activeTab === "board" && (
-          <KanbanBoard projectId={projectId} projectMembers={membersList} canEdit={canEdit} />
+          <>
+            <div className="lg:hidden"><TaskList projectId={projectId} canEdit={canEdit} projectStatus={statusKey} projectMembers={membersList} /></div>
+            <div className="hidden lg:block"><KanbanBoard projectId={projectId} projectMembers={membersList} canEdit={canEdit} projectStatus={statusKey} /></div>
+          </>
         )}
 
         {/* TAB 2: TASK LIST VIEW */}
-        {activeTab === "list" && (<TaskList projectId={projectId} canEdit={canEdit} />)}
+        {activeTab === "list" && (<TaskList projectId={projectId} canEdit={canEdit} projectStatus={statusKey} />)}
 
         {/* TAB 3: MEMBERS VIEW */}
         {activeTab === "members" && (
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-6 space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
+          <div className="space-y-4 rounded-2xl border border-slate-200/80 bg-white p-4 sm:p-6">
+            <div className="flex flex-col gap-3 border-b border-slate-100 pb-3 sm:flex-row sm:items-center sm:justify-between">
+              <h3 className="flex items-center gap-2 text-base font-bold text-slate-800">
                 <Users className="size-5 text-blue-600" />
                 Thành viên Dự án ({membersList.length})
               </h3>
@@ -507,10 +546,10 @@ export default function ProjectDetailPage() {
                 <Button
                   size="sm"
                   onClick={() => setIsProjectMembersOpen(true)}
-                  className="gap-1.5 font-bold bg-blue-600 hover:bg-blue-700 text-white text-xs rounded-xl cursor-pointer"
+                  className="w-full gap-1.5 rounded-xl bg-blue-600 text-xs font-bold text-white cursor-pointer hover:bg-blue-700 sm:w-auto"
                 >
                   <UserPlus className="size-3.5" />
-                  Quản lý & Thêm thành viên
+                  Quản lý thành viên
                 </Button>
               )}
             </div>
@@ -561,8 +600,8 @@ export default function ProjectDetailPage() {
         {activeTab === "settings" && (
           <div className="space-y-8 pb-12">
             {/* Form Chỉnh Sửa Dự Án */}
-            <form onSubmit={handleSaveSettings} className="bg-white border border-slate-200/80 rounded-2xl p-6 space-y-6">
-              <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+            <form onSubmit={handleSaveSettings} className="space-y-6 rounded-2xl border border-slate-200/80 bg-white p-4 sm:p-6">
+              <div className="flex flex-col gap-4 border-b border-slate-100 pb-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="space-y-1">
                   <h3 className="text-lg font-extrabold text-slate-800 flex items-center gap-2">
                     <Settings className="size-5 text-blue-600" />
@@ -573,7 +612,7 @@ export default function ProjectDetailPage() {
                   </p>
                 </div>
 
-                <Button type="submit" disabled={isUpdating} className="gap-2 font-bold cursor-pointer">
+                <Button type="submit" disabled={isUpdating} className="w-full gap-2 font-bold cursor-pointer sm:w-auto">
                   <Save className="size-4" />
                   {isUpdating ? "Đang lưu..." : "Lưu thay đổi"}
                 </Button>
@@ -669,12 +708,13 @@ export default function ProjectDetailPage() {
                     className="h-10 rounded-xl border-slate-200"
                   />
                 </div>
+                <ExportReportButton scope="project" id={projectId} label="Xuất báo cáo" />
               </div>
             </form>
 
             {/* Lưu Trữ Dự Án (Archive) */}
-            <div className="bg-white border border-slate-200/80 rounded-2xl p-6 space-y-4">
-              <div className="flex items-center justify-between">
+            <div className="space-y-4 rounded-2xl border border-slate-200/80 bg-white p-4 sm:p-6">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="space-y-1">
                   <h3 className="text-lg font-extrabold text-slate-800 flex items-center gap-2">
                     <Archive className="size-5 text-slate-600" />
@@ -691,13 +731,20 @@ export default function ProjectDetailPage() {
                   type="button"
                   variant="outline"
                   onClick={handleToggleArchive}
-                  className="font-semibold cursor-pointer border-slate-200"
+                  className="w-full border-slate-200 font-semibold cursor-pointer sm:w-auto"
                 >
                   <Archive className="size-4 mr-1.5" />
                   {projectData?.isArchived ? "Khôi phục Dự án" : "Lưu trữ Dự án"}
                 </Button>
               </div>
             </div>
+
+            <ProjectActivityHistory
+              activities={projectActivities}
+              hasMore={hasMoreProjectActivities}
+              isLoadingMore={isLoadingMoreProjectActivities}
+              onLoadMore={() => loadMoreProjectActivities()}
+            />
 
             {/* Danger Zone (Vùng Nguy Hiểm) */}
             <div className="bg-rose-50/60 border border-rose-200/80 rounded-2xl p-6 space-y-4">
@@ -737,6 +784,28 @@ export default function ProjectDetailPage() {
           onUpdateProject={handleUpdateProjectData}
           canManageMembers={canManageMembers}
         />
+        <ProjectStatusConfirmDialog
+          open={isStatusConfirmOpen}
+          status={editStatus}
+          isPending={isUpdating}
+          onOpenChange={setIsStatusConfirmOpen}
+          onConfirm={saveProjectSettings}
+        />
+        {Boolean(linkedTaskId && linkedTask) && (
+          <TaskDetailModal
+            task={linkedTask as any}
+            isOpen
+            projectMembers={membersList}
+            canEdit={canEdit}
+            onClose={() => {
+              const nextParams = new URLSearchParams(searchParams.toString());
+              nextParams.delete("taskId");
+              nextParams.delete("commentId");
+              const query = nextParams.toString();
+              router.replace(query ? `?${query}` : window.location.pathname, { scroll: false });
+            }}
+          />
+        )}
       </div>
     </div>
   );

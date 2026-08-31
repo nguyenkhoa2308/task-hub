@@ -38,6 +38,9 @@ export interface WorkSpace {
   color: string;
   members?: Member[] | MemberProps[];
   projects?: Project[];
+  allowMembersCreateProjects?: boolean;
+  allowMembersInvite?: boolean;
+  defaultProjectPrivate?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

@@ -73,8 +73,10 @@ export default function RegisterForm() {
                   {...field}
                   id={field.name}
                   type="text"
+                  autoComplete="name"
                   placeholder="Nguyễn Văn A"
                   aria-invalid={fieldState.invalid}
+                  className="h-11 text-base sm:text-sm"
                 />
                 {fieldState.invalid && (
                   <FieldError errors={[fieldState.error]} />
@@ -95,8 +97,10 @@ export default function RegisterForm() {
                   {...field}
                   id={field.name}
                   type="email"
+                  autoComplete="email"
                   placeholder="example@email.com"
                   aria-invalid={fieldState.invalid}
+                  className="h-11 text-base sm:text-sm"
                 />
                 {fieldState.invalid && (
                   <FieldError errors={[fieldState.error]} />
@@ -118,8 +122,10 @@ export default function RegisterForm() {
                     {...field}
                     id={field.name}
                     type={showPassword ? "text" : "password"}
+                    autoComplete="new-password"
                     placeholder="••••••••"
                     aria-invalid={fieldState.invalid}
+                    className="h-11 pr-10 text-base sm:text-sm"
                   />
                   <button
                     type="button"
@@ -151,8 +157,10 @@ export default function RegisterForm() {
                     {...field}
                     id={field.name}
                     type={showConfirmPassword ? "text" : "password"}
+                    autoComplete="new-password"
                     placeholder="••••••••"
                     aria-invalid={fieldState.invalid}
+                    className="h-11 pr-10 text-base sm:text-sm"
                   />
                   <button
                     type="button"

@@ -36,6 +36,7 @@ interface CreateProjectDialogProps {
   onOpenChange: (open: boolean) => void;
   workspaceId: string;
   workspaceMembers?: MemberProps[];
+  defaultProjectPrivate?: boolean;
 }
 
 export type CreateProjectFormData = z.infer<typeof projectSchema>;
@@ -61,6 +62,7 @@ export const CreateProjectDialog = ({
   onOpenChange,
   workspaceId,
   workspaceMembers = [],
+  defaultProjectPrivate = false,
 }: CreateProjectDialogProps) => {
   const queryClient = useQueryClient();
   const form = useForm<CreateProjectFormData>({
@@ -73,7 +75,7 @@ export const CreateProjectDialog = ({
       dueDate: "",
       members: [],
       tags: "",
-      isPrivate: false,
+      isPrivate: defaultProjectPrivate,
     },
   });
   const { mutate, isPending } = useCreateProject();
@@ -89,10 +91,10 @@ export const CreateProjectDialog = ({
         dueDate: "",
         members: [],
         tags: "",
-        isPrivate: false,
+        isPrivate: defaultProjectPrivate,
       });
     }
-  }, [isOpen, form]);
+  }, [defaultProjectPrivate, isOpen, form]);
 
   const handleOpenChange = (open: boolean) => {
     if (!open) {

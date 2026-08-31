@@ -127,9 +127,9 @@ export function ProjectMembersDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg rounded-2xl p-6">
-        <DialogHeader className="space-y-1">
-          <DialogTitle className="font-extrabold text-xl flex items-center gap-2 text-slate-800">
+      <DialogContent className="max-w-lg rounded-2xl p-6 max-md:!fixed max-md:!inset-y-0 max-md:!right-0 max-md:!left-auto max-md:!top-0 max-md:!flex max-md:!h-dvh max-md:!w-[86vw] max-md:!max-w-[340px] max-md:!translate-x-0 max-md:!translate-y-0 max-md:!flex-col max-md:!gap-4 max-md:!rounded-none max-md:!p-4 max-md:!duration-300 max-md:data-open:slide-in-from-right-full max-md:data-open:zoom-in-100 max-md:data-closed:slide-out-to-right-full max-md:data-closed:zoom-out-100">
+        <DialogHeader className="shrink-0 space-y-1 pr-9">
+          <DialogTitle className="flex items-center gap-2 text-base font-extrabold leading-6 text-slate-800 sm:text-xl">
             <div className="p-2 rounded-xl bg-blue-50 text-blue-600">
               <Users className="h-5 w-5" />
             </div>
@@ -142,7 +142,7 @@ export function ProjectMembersDialog({
 
         {/* Privacy Toggle Section */}
         {canManageMembers && (
-          <div className="mt-2 p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex items-center justify-between">
+          <div className="mt-2 flex flex-col items-stretch gap-3 rounded-xl border border-slate-200/80 bg-slate-50 p-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="space-y-0.5 pr-2">
               <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                 {privacySetting ? (
@@ -168,7 +168,7 @@ export function ProjectMembersDialog({
               variant="outline"
               disabled={isSubmitting}
               onClick={() => handleTogglePrivacy(!privacySetting)}
-              className="text-xs font-bold shrink-0 h-8 rounded-lg"
+              className="h-8 w-full shrink-0 rounded-lg text-xs font-bold sm:w-auto"
             >
               {privacySetting ? "Đổi sang Công khai" : "Đổi sang Riêng tư"}
             </Button>
@@ -181,7 +181,7 @@ export function ProjectMembersDialog({
             <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
               <UserPlus className="h-3.5 w-3.5 text-blue-600" /> Thêm thành viên từ Workspace
             </label>
-            <div className="flex gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:flex">
               <Select value={selectedUserToInvite} onValueChange={setSelectedUserToInvite}>
                 <SelectTrigger className="h-9 text-xs rounded-xl flex-1 bg-white">
                   <SelectValue placeholder="Chọn thành viên..." />
@@ -199,7 +199,7 @@ export function ProjectMembersDialog({
               </Select>
 
               <Select value={selectedRoleToInvite} onValueChange={setSelectedRoleToInvite}>
-                <SelectTrigger className="h-9 text-xs rounded-xl w-32 bg-white">
+                <SelectTrigger className="h-9 w-full rounded-xl bg-white text-xs sm:w-32">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl">
@@ -222,12 +222,12 @@ export function ProjectMembersDialog({
         )}
 
         {/* Current Project Members List */}
-        <div className="space-y-2 mt-3">
+        <div className="mt-3 flex min-h-0 flex-1 flex-col space-y-2">
           <div className="flex items-center justify-between text-xs font-bold text-slate-700">
             <span>Danh sách thành viên ({currentProjectMembers.length})</span>
           </div>
 
-          <div className="space-y-2 max-h-[45vh] overflow-y-auto pr-1">
+          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1 sm:max-h-[45vh]">
             {currentProjectMembers.map((m: any) => {
               const u = typeof m.user === "object" ? m.user : { _id: m.user, name: "Người dùng", email: "" };
               const currentRole = m.role || "contributor";
@@ -235,7 +235,7 @@ export function ProjectMembersDialog({
               return (
                 <div
                   key={u._id}
-                  className="flex items-center justify-between p-2.5 bg-slate-50/80 border border-slate-200/60 rounded-xl hover:bg-slate-50 transition-all"
+                  className="flex flex-col gap-2.5 rounded-xl border border-slate-200/60 bg-slate-50/80 p-2.5 transition-all hover:bg-slate-50 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div className="flex items-center gap-2.5 min-w-0 pr-2">
                     <Avatar className="h-8 w-8 border border-slate-200 shrink-0">
@@ -250,14 +250,14 @@ export function ProjectMembersDialog({
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1.5 shrink-0">
+                  <div className="flex w-full shrink-0 items-center gap-1.5 sm:w-auto">
                     {canManageMembers ? (
                       <Select
                         value={currentRole}
                         onValueChange={(newRole) => handleChangeRole(u._id, newRole)}
                         disabled={isSubmitting}
                       >
-                        <SelectTrigger className="h-8 text-[11px] font-semibold rounded-lg w-32 bg-white">
+                        <SelectTrigger className="h-8 flex-1 rounded-lg bg-white text-[11px] font-semibold sm:w-32 sm:flex-none">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent className="rounded-xl">

@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsOptional, IsString, MinLength } from "class-validator";
+import { IsBoolean, IsNotEmpty, IsOptional, IsString, MinLength } from "class-validator";
 
 export class CreateWorkspaceDto {
     @IsString({ message: "Tên không hợp lệ" })
@@ -14,4 +14,16 @@ export class CreateWorkspaceDto {
     @IsNotEmpty({ message: "Màu sắc không được để trống" })
     @MinLength(3, { message: "Màu sắc phải có ít nhất 3 ký tự" })
     color!: string;
+
+    @IsOptional()
+    @IsBoolean()
+    allowMembersCreateProjects?: boolean;
+
+    @IsOptional()
+    @IsBoolean()
+    allowMembersInvite?: boolean;
+
+    @IsOptional()
+    @IsBoolean()
+    defaultProjectPrivate?: boolean;
 }

@@ -2,9 +2,28 @@ import { workspaceSchema } from "@/lib/schema";
 import type { z } from "zod";
 import { deleteData, getData, patchData, postData } from "@/lib/axios";
 import type { Project, WorkSpace } from "@/types";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 export type WorkspaceForm = z.infer<typeof workspaceSchema>;
+
+export interface DashboardTask {
+  _id: string;
+  title: string;
+  description?: string;
+  status: string;
+  priority?: string;
+  startDate?: string;
+  dueDate?: string;
+  assignees?: Array<{ name?: string; profileImage?: string }>;
+  subtasks?: Array<{ done?: boolean; completed?: boolean }>;
+  attachments?: unknown[];
+  comments?: unknown[];
+  project?: {
+    title?: string;
+    name?: string;
+    workspace?: { name?: string };
+  };
+}
 
 export interface DashboardStats {
   totalWorkspaces: number;
@@ -50,8 +69,8 @@ export interface DashboardStats {
     members?: any[];
     updatedAt?: string;
   }>;
-  upcomingTasks7Days: any[];
-  overdueTasksList?: any[];
+  upcomingTasks7Days: DashboardTask[];
+  overdueTasksList?: DashboardTask[];
 }
 
 export const useCreateWorkspace = () => {
@@ -76,18 +95,19 @@ export const useDeleteWorkspace = () => {
 export const useGetWorkspaces = () => {
     return useQuery({
         queryKey: ["workspaces"],
-        queryFn: async () => getData<any[]>("/workspaces"),
+        queryFn: async () => getData<WorkSpace[]>("/workspaces"),
     });
 };
 
 export const useGetWorkspaceById = (workspaceId: string) => {
+    const hasSelectedWorkspace = Boolean(workspaceId && workspaceId !== "all");
     return useQuery({
         queryKey: ["workspace", workspaceId],
         queryFn: async () =>
             getData<WorkSpace>(
                 `/workspaces/${workspaceId}`
             ),
-        enabled: !!workspaceId,
+        enabled: hasSelectedWorkspace,
     });
 };
 
@@ -116,11 +136,12 @@ export const useJoinWorkspaceByLink = () => {
 };
 
 export const useGetPendingMembers = (workspaceId: string) => {
+    const hasSelectedWorkspace = Boolean(workspaceId && workspaceId !== "all");
     return useQuery({
         queryKey: ["pending-members", workspaceId],
         queryFn: async () =>
             getData<any[]>(`/members/pending/workspace/${workspaceId}`),
-        enabled: !!workspaceId,
+        enabled: hasSelectedWorkspace,
     });
 };
 
@@ -137,4 +158,73 @@ export const useRejectMember = (workspaceId: string) => {
             postData(`/members/reject/workspace/${workspaceId}`, { userId }),
     });
 };
-
+
+export const useGetDeletedWorkspaces = (params?: { page?: number; limit?: number }) => {
+    return useQuery({
+        queryKey: ["trash-workspaces", params],
+        queryFn: async () => getData<{
+            data: any[];
+            pagination: { page: number; limit: number; total: number; totalPages: number };
+        }>("/workspaces/trash/all", { params }),
+        placeholderData: (previous) => previous,
+    });
+};
+
+export const useRestoreWorkspace = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (id: string) => patchData(`/workspaces/${id}/restore`, {}),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["trash-workspaces"] });
+            queryClient.invalidateQueries({ queryKey: ["workspaces"] });
+            queryClient.invalidateQueries({ queryKey: ["projects"] });
+            queryClient.invalidateQueries({ queryKey: ["my-tasks"] });
+        },
+    });
+};
+
+const useRefreshWorkspaceMembers = (workspaceId: string) => {
+    const queryClient = useQueryClient();
+    return async () => {
+        await Promise.all([
+            queryClient.invalidateQueries({ queryKey: ["workspace", workspaceId] }),
+            queryClient.invalidateQueries({ queryKey: ["workspaces"] }),
+            queryClient.invalidateQueries({ queryKey: ["workspace-dashboard"] }),
+        ]);
+    };
+};
+
+export const useUpdateWorkspaceMemberRole = (workspaceId: string) => {
+    const refresh = useRefreshWorkspaceMembers(workspaceId);
+    return useMutation({
+        mutationFn: ({ userId, role }: { userId: string; role: "admin" | "member" | "viewer" }) =>
+            patchData(`/members/workspace/${workspaceId}/${userId}/role`, { role }),
+        onSuccess: refresh,
+    });
+};
+
+export const useRemoveWorkspaceMember = (workspaceId: string) => {
+    const refresh = useRefreshWorkspaceMembers(workspaceId);
+    return useMutation({
+        mutationFn: (userId: string) => deleteData(`/members/workspace/${workspaceId}/${userId}`),
+        onSuccess: refresh,
+    });
+};
+
+export const useLeaveWorkspace = (workspaceId: string) => {
+    const refresh = useRefreshWorkspaceMembers(workspaceId);
+    return useMutation({
+        mutationFn: () => postData(`/members/workspace/${workspaceId}/leave`, {}),
+        onSuccess: refresh,
+    });
+};
+
+export const useTransferWorkspaceOwnership = (workspaceId: string) => {
+    const refresh = useRefreshWorkspaceMembers(workspaceId);
+    return useMutation({
+        mutationFn: (userId: string) =>
+            postData(`/members/workspace/${workspaceId}/transfer-ownership`, { userId }),
+        onSuccess: refresh,
+    });
+};
+

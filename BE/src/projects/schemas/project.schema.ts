@@ -54,8 +54,21 @@ export class Project extends Document {
     @Prop({ type: Boolean, default: false })
     isArchived!: boolean;
 
+    @Prop({ type: Date, default: null })
+    archivedAt?: Date | null;
+
+    @Prop({ type: Date, default: null })
+    deletedAt?: Date | null;
+
+    @Prop({ type: Boolean, default: false })
+    deletedViaWorkspace!: boolean;
+
     @Prop({ type: Boolean, default: false })
     isPrivate!: boolean;
 }
 
 export const ProjectSchema = SchemaFactory.createForClass(Project);
+
+ProjectSchema.index({ workspace: 1, isArchived: 1, deletedAt: 1, updatedAt: -1 });
+ProjectSchema.index({ 'members.user': 1, deletedAt: 1 });
+ProjectSchema.index({ deletedAt: 1, _id: 1 }, { name: 'project_trash_cleanup' });

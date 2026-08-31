@@ -42,8 +42,8 @@ export default function WorkspaceInvitePage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-        <div className="bg-white border border-slate-200/80 rounded-3xl p-8 max-w-md w-full shadow-xs text-center space-y-4">
+      <div className="flex min-h-dvh items-center justify-center bg-slate-50 p-0 sm:p-4">
+        <div className="min-h-dvh w-full max-w-md space-y-4 bg-white p-5 text-center sm:min-h-0 sm:rounded-3xl sm:border sm:border-slate-200/80 sm:p-8 sm:shadow-xs">
           <Skeleton className="size-16 rounded-2xl mx-auto" />
           <Skeleton className="h-6 w-3/4 mx-auto rounded-lg" />
           <Skeleton className="h-4 w-1/2 mx-auto rounded-md" />
@@ -55,8 +55,8 @@ export default function WorkspaceInvitePage() {
 
   if (isError || !workspace) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-        <div className="bg-white border border-slate-200/80 rounded-3xl p-8 max-w-md w-full shadow-xs text-center space-y-4">
+      <div className="flex min-h-dvh items-center justify-center bg-slate-50 p-0 sm:p-4">
+        <div className="min-h-dvh w-full max-w-md space-y-4 bg-white p-5 text-center sm:min-h-0 sm:rounded-3xl sm:border sm:border-slate-200/80 sm:p-8 sm:shadow-xs">
           <div className="size-14 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto">
             <AlertCircle className="size-7" />
           </div>
@@ -75,8 +75,8 @@ export default function WorkspaceInvitePage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50/80 flex items-center justify-center p-4">
-      <div className="bg-white border border-slate-200/80 rounded-3xl p-8 max-w-md w-full shadow-md text-center space-y-6">
+    <div className="flex min-h-dvh items-center justify-center bg-slate-50/80 p-0 sm:p-4">
+      <div className="min-h-dvh w-full max-w-md space-y-6 bg-white p-5 pt-10 text-center sm:min-h-0 sm:rounded-3xl sm:border sm:border-slate-200/80 sm:p-8 sm:shadow-md">
         {/* Workspace Avatar */}
         <div
           className="size-16 rounded-2xl flex items-center justify-center shadow-md mx-auto"

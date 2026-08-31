@@ -1,6 +1,7 @@
 import {
   IsArray,
   IsBoolean,
+  IsDateString,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -38,7 +39,11 @@ export class CreateTaskDto {
   watchers?: string[];
 
   @IsOptional()
-  @IsString()
+  @IsDateString()
+  startDate?: string;
+
+  @IsOptional()
+  @IsDateString()
   dueDate?: string;
 
   @IsOptional()

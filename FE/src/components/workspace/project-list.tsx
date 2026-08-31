@@ -9,7 +9,7 @@ import type { Project } from "@/types";
 interface ProjectListProps {
   workspaceId: string;
   projects: Project[];
-  onCreateProject: () => void;
+  onCreateProject?: () => void;
 }
 
 // Cấu hình hiển thị Badge Trạng thái tiếng Việt
@@ -75,35 +75,36 @@ export function ProjectList({
         <p className="text-slate-500 max-w-md mt-1.5 text-sm">
           Workspace này chưa có dự án. Bắt đầu bằng cách tạo dự án đầu tiên!
         </p>
-        <Button
+        {onCreateProject && <Button
           onClick={onCreateProject}
           className="mt-6 gap-2 font-bold cursor-pointer active:scale-97 transition-all shadow-md shadow-blue-500/10"
         >
           <Plus className="h-4 w-4" />
           Tạo Dự án đầu tiên
-        </Button>
+        </Button>}
       </div>
     );
   }
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-extrabold text-slate-800 flex items-center gap-2">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="flex min-w-0 items-center gap-2 text-base font-extrabold text-slate-800 sm:text-lg">
           <FolderKanban className="h-5 w-5 text-blue-600" />
-          Danh sách Dự án
-          <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full ml-1">
+          <span className="sm:hidden">Dự án</span>
+          <span className="hidden sm:inline">Danh sách Dự án</span>
+          <span className="ml-0.5 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500 sm:ml-1">
             {projects.length}
           </span>
         </h2>
-        <Button
+        {onCreateProject && <Button
           onClick={onCreateProject}
           size="sm"
-          className="gap-1.5 font-bold cursor-pointer shadow-xs hover:shadow-md transition-all"
+          className="shrink-0 gap-1.5 font-bold cursor-pointer shadow-xs hover:shadow-md transition-all"
         >
           <Plus className="h-4 w-4" />
           Tạo Dự án
-        </Button>
+        </Button>}
       </div>
 
       <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
@@ -123,7 +124,7 @@ export function ProjectList({
               href={`/workspaces/${workspaceId}/projects/${project._id}`}
               className="group block"
             >
-              <div className="h-full bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs hover:shadow-xl hover:shadow-slate-200/50 hover:border-blue-300 hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between relative overflow-hidden">
+              <div className="relative flex h-full flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs transition-all duration-300 hover:border-blue-300 hover:shadow-xl hover:shadow-slate-200/50 sm:p-5 sm:hover:-translate-y-1">
                 {/* Top Section: Title & Status Badge */}
                 <div>
                   <div className="flex items-start justify-between gap-3 mb-2">
@@ -161,7 +162,7 @@ export function ProjectList({
                 </div>
 
                 {/* Bottom Section: Footer Info & Members */}
-                <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-medium">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3 text-xs font-medium text-slate-500">
                   {/* Task Count */}
                   <div className="flex items-center gap-1.5 text-slate-600 font-semibold">
                     <CheckSquare className="h-3.5 w-3.5 text-slate-400" />

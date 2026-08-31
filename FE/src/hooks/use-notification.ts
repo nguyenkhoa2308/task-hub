@@ -1,17 +1,17 @@
 import { useEffect } from "react";
 import { getData, patchData } from "@/lib/axios";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 export interface NotificationItem {
   _id: string;
   recipient: string;
-  sender: {
+  sender?: {
     _id: string;
     name: string;
     email: string;
     profileImage?: string;
   };
-  type: "TASK_ASSIGNED" | "NEW_COMMENT" | "TASK_DUE_SOON" | "WORKSPACE_INVITE" | "TASK_UPDATED";
+  type: "TASK_ASSIGNED" | "NEW_COMMENT" | "COMMENT_MENTION" | "COMMENT_REPLY" | "TASK_DUE_SOON" | "TASK_OVERDUE" | "WORKSPACE_INVITE" | "TASK_UPDATED";
   title: string;
   message: string;
   link?: string;
@@ -20,10 +20,25 @@ export interface NotificationItem {
   updatedAt: string;
 }
 
+interface NotificationPage {
+  data: NotificationItem[];
+  pagination: { page: number; limit: number; total: number; totalPages: number };
+}
+
+const NOTIFICATIONS_QUERY_KEY = ["notifications", "infinite-v2"] as const;
+
 export const useGetNotifications = () => {
-  return useQuery<NotificationItem[]>({
-    queryKey: ["notifications"],
-    queryFn: async () => getData("/notifications"),
+  return useInfiniteQuery<NotificationPage>({
+    queryKey: NOTIFICATIONS_QUERY_KEY,
+    queryFn: async ({ pageParam }) => getData("/notifications", {
+      params: { page: pageParam, limit: 20 },
+    }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => (
+      lastPage.pagination.page < lastPage.pagination.totalPages
+        ? lastPage.pagination.page + 1
+        : undefined
+    ),
     refetchInterval: 15_000, // Fallback polling 15s
   });
 };
@@ -42,7 +57,7 @@ export const useMarkNotificationAsRead = () => {
     mutationFn: async (notificationId: string) =>
       patchData(`/notifications/${notificationId}/read`, {}),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: ["unread-notification-count"] });
     },
   });
@@ -53,7 +68,7 @@ export const useMarkAllNotificationsAsRead = () => {
   return useMutation({
     mutationFn: async () => patchData("/notifications/read-all", {}),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: ["unread-notification-count"] });
     },
   });
@@ -75,8 +90,35 @@ export const useSSENotifications = () => {
         try {
           const data = JSON.parse(event.data);
           if (data) {
-            queryClient.invalidateQueries({ queryKey: ["notifications"] });
-            queryClient.invalidateQueries({ queryKey: ["unread-notification-count"] });
+            queryClient.setQueryData(NOTIFICATIONS_QUERY_KEY, (current: any) => {
+              if (!current?.pages?.length) return current;
+              if (current.pages.some((page: NotificationPage) => page.data.some((item) => item._id === data._id))) {
+                return current;
+              }
+              const firstPage = current.pages[0] as NotificationPage;
+              const total = firstPage.pagination.total + 1;
+              return {
+                ...current,
+                pages: [
+                  {
+                    ...firstPage,
+                    data: [data, ...firstPage.data],
+                    pagination: {
+                      ...firstPage.pagination,
+                      total,
+                      totalPages: Math.ceil(total / firstPage.pagination.limit),
+                    },
+                  },
+                  ...current.pages.slice(1),
+                ],
+              };
+            });
+            queryClient.setQueryData(
+              ["unread-notification-count"],
+              (current: { unreadCount: number } | undefined) => ({
+                unreadCount: (current?.unreadCount || 0) + 1,
+              }),
+            );
           }
         } catch (e) {
           // Ignore parse errors

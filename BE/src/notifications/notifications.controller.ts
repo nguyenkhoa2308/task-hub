@@ -21,11 +21,13 @@ export class NotificationsController {
   @Get()
   async getUserNotifications(
     @Req() req: any,
+    @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
     const userId = req.user.userId;
+    const currentPage = page ? parseInt(page, 10) : 1;
     const lim = limit ? parseInt(limit, 10) : 20;
-    return this.notificationsService.getUserNotifications(userId, lim);
+    return this.notificationsService.getUserNotifications(userId, currentPage, lim);
   }
 
   @Get('unread-count')

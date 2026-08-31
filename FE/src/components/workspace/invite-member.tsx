@@ -92,7 +92,7 @@ export function InviteMemberDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange} modal={true}>
-      <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto rounded-2xl p-6">
+      <DialogContent className="max-h-[85vh] max-w-md overflow-y-auto rounded-2xl p-6 max-lg:!fixed max-lg:!inset-y-0 max-lg:!right-0 max-lg:!left-auto max-lg:!top-0 max-lg:!flex max-lg:!h-dvh max-lg:!max-h-none max-lg:!w-full max-lg:!max-w-none max-lg:!translate-x-0 max-lg:!translate-y-0 max-lg:!flex-col max-lg:!gap-4 max-lg:!rounded-none max-lg:!p-4 max-lg:!duration-300 max-lg:data-open:slide-in-from-right-full max-lg:data-open:zoom-in-100 max-lg:data-closed:slide-out-to-right-full max-lg:data-closed:zoom-out-100 sm:max-lg:!w-[520px]">
         <DialogHeader className="space-y-1">
           <DialogTitle className="font-extrabold text-xl flex items-center gap-2.5 text-slate-800">
             <div className="p-2 rounded-xl bg-blue-50 text-blue-600">
@@ -270,4 +270,3 @@ export function InviteMemberDialog({
     </Dialog>
   );
 }
-

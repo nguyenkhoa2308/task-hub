@@ -11,6 +11,7 @@ import {
   Loader2,
   Save,
   Check,
+  Camera,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,7 +21,9 @@ import {
   useGetMeQuery,
   useUpdateProfileMutation,
   useChangePasswordMutation,
+  useUploadAvatarMutation,
 } from "@/hooks/use-auth";
+import { PageErrorState } from "@/components/ui/page-state";
 
 const CLAY_AVATAR_SEEDS = [
   "Felix",
@@ -38,13 +41,15 @@ const CLAY_AVATAR_SEEDS = [
 ];
 
 export default function ProfilePage() {
-  const { data: meRaw, isLoading } = useGetMeQuery();
+  const { data: meRaw, isLoading, isError, refetch } = useGetMeQuery();
   const me = (meRaw as any)?.user || (meRaw as any);
 
   const { mutate: updateProfile, isPending: isUpdatingProfile } =
     useUpdateProfileMutation();
   const { mutate: changePassword, isPending: isChangingPassword } =
     useChangePasswordMutation();
+  const { mutateAsync: uploadAvatar, isPending: isUploadingAvatar } =
+    useUploadAvatarMutation();
 
   // Profile Form state
   const [name, setName] = useState("");
@@ -68,6 +73,19 @@ export default function ProfilePage() {
     const url = `https://api.dicebear.com/10.x/clay/svg?seed=${seed}`;
     setProfileImage(url);
     setCustomAvatarUrl("");
+  };
+
+  const handleUploadAvatar = async (file?: File) => {
+    if (!file) return;
+    try {
+      const result = await uploadAvatar(file);
+      const imageUrl = result?.user?.profileImage;
+      if (imageUrl) setProfileImage(imageUrl);
+      setCustomAvatarUrl("");
+      toast.success("Đã cập nhật ảnh đại diện");
+    } catch (error: any) {
+      toast.error(error.message || "Không thể tải ảnh đại diện lên");
+    }
   };
 
   const handleSaveProfile = (e: React.FormEvent) => {
@@ -131,28 +149,29 @@ export default function ProfilePage() {
     );
   }
 
+  if (isError) {
+    return <PageErrorState title="Không thể tải hồ sơ" onRetry={() => refetch()} />;
+  }
+
   return (
-    <div className="max-w-4xl mx-auto space-y-8 pb-12">
+    <div className="w-full space-y-6 pb-12">
       {/* Header Bar */}
-      <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col gap-4 border-b border-slate-200/80 pb-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div className="flex items-center gap-2 text-blue-600 text-sm font-semibold mb-1">
-            <UserIcon className="size-4" />
-            <span>Tài khoản của tôi</span>
-          </div>
-          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900">
+          <h1 className="flex items-center gap-2.5 text-2xl font-extrabold tracking-tight text-slate-800">
+            <UserIcon className="size-7 text-blue-600" />
             Hồ sơ cá nhân
           </h1>
-          <p className="text-slate-500 text-sm mt-1">
-            Quản lý thông tin tài khoản, ảnh đại diện và bảo mật
+          <p className="mt-1 text-sm text-slate-500">
+            Quản lý thông tin tài khoản, ảnh đại diện và bảo mật.
           </p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[300px_minmax(0,1fr)]">
         {/* Left Column: Avatar & Quick Info Card */}
-        <div className="md:col-span-1 space-y-6">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-2xs text-center space-y-4">
+        <div className="space-y-6">
+          <div className="bg-white border border-slate-200 rounded-xl p-6 text-center space-y-4 lg:sticky lg:top-20">
             <div className="relative inline-block mx-auto">
               <Avatar className="size-28 ring-4 ring-slate-100 shadow-md">
                 <AvatarImage src={profileImage} alt={name} />
@@ -164,6 +183,12 @@ export default function ProfilePage() {
                 <CheckCircle2 className="size-4" />
               </div>
             </div>
+
+            <label className={`mx-auto inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 ${isUploadingAvatar ? "cursor-wait opacity-60" : "cursor-pointer"}`}>
+              <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" disabled={isUploadingAvatar} onChange={(event) => { handleUploadAvatar(event.target.files?.[0]); event.target.value = ""; }} />
+              {isUploadingAvatar ? <Loader2 className="size-3.5 animate-spin" /> : <Camera className="size-3.5" />}
+              {isUploadingAvatar ? "Đang tải..." : "Tải ảnh lên"}
+            </label>
 
             <div>
               <h2 className="text-lg font-extrabold text-slate-900">{name || "Người dùng"}</h2>
@@ -178,9 +203,9 @@ export default function ProfilePage() {
         </div>
 
         {/* Right Column: Edit Profile & Security Forms */}
-        <div className="md:col-span-2 space-y-6">
+        <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
           {/* Edit Profile Information */}
-          <form onSubmit={handleSaveProfile} className="bg-white border border-slate-200 rounded-2xl p-6 shadow-2xs space-y-6">
+          <form onSubmit={handleSaveProfile} className="bg-white border border-slate-200 rounded-xl p-5 sm:p-6 space-y-6">
             <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
               <Sparkles className="size-5 text-blue-600" />
               <h3 className="text-base font-bold text-slate-900">Thông tin cá nhân</h3>
@@ -279,7 +304,7 @@ export default function ProfilePage() {
           </form>
 
           {/* Change Password Form */}
-          <form onSubmit={handleChangePassword} className="bg-white border border-slate-200 rounded-2xl p-6 shadow-2xs space-y-6">
+          <form onSubmit={handleChangePassword} className="bg-white border border-slate-200 rounded-xl p-5 sm:p-6 space-y-6">
             <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
               <KeyRound className="size-5 text-rose-600" />
               <h3 className="text-base font-bold text-slate-900">Đổi mật khẩu</h3>

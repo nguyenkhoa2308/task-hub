@@ -119,6 +119,26 @@ export class AuthService {
     return tokens;
   }
 
+  async logout(refreshToken?: string) {
+    if (!refreshToken) return;
+    let payload: { sub: string };
+    try {
+      payload = await this.jwtService.verifyAsync<{ sub: string }>(refreshToken, {
+        secret: process.env.JWT_REFRESH_SECRET,
+        ignoreExpiration: true,
+      });
+    } catch {
+      return;
+    }
+    if (!payload?.sub) return;
+    const user = await this.usersService.findByIdWithRefreshToken(payload.sub);
+    if (!user?.refreshToken) return;
+    const isCurrentToken = await bcrypt.compare(refreshToken, user.refreshToken);
+    if (isCurrentToken) {
+      await this.usersService.updateRefreshToken(payload.sub, null);
+    }
+  }
+
   private generateTokens(userId: string, email: string) {
     const payload = { sub: userId, email };
 
@@ -225,6 +245,10 @@ export class AuthService {
       isEmailVerified: user.isEmailVerified,
       createdAt: user.createdAt,
     };
+  }
+
+  async uploadAvatar(userId: string, file: any) {
+    return this.usersService.uploadAvatar(userId, file);
   }
 
   async changePassword(userId: string, currentPass: string, newPass: string) {

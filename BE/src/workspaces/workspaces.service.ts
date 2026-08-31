@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { isValidObjectId, Model } from 'mongoose';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
 import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
 import { Workspace } from './schemas/workspace.schema';
@@ -42,13 +42,17 @@ export class WorkspacesService {
   async getWorkspaces(userId: string) {
     const workspaces = await this.workspaceModel.find({
       members: { $elemMatch: { user: userId, status: { $ne: 'pending' } } },
+      deletedAt: null,
     }).sort({ createdAt: -1 });
     return workspaces;
   }
 
   async getWorkspaceById(workspaceId: string, userId?: string) {
+    if (!isValidObjectId(workspaceId)) {
+      throw new BadRequestException('Workspace ID không hợp lệ');
+    }
     const workspace = await this.workspaceModel
-      .findById(workspaceId)
+      .findOne({ _id: workspaceId, deletedAt: null })
       .populate('members.user', 'name email profileImage')
       .populate({
         path: 'projects',
@@ -63,11 +67,17 @@ export class WorkspacesService {
 
     if (userId) {
       const wsMember = workspace.members.find(
-        (m: any) => (m.user?._id?.toString() || m.user?.toString()) === userId.toString(),
+        (m: any) =>
+          (m.user?._id?.toString() || m.user?.toString()) === userId.toString()
+          && m.status !== 'pending',
       );
+      if (!wsMember) {
+        throw new ForbiddenException('Bạn không có quyền truy cập workspace này');
+      }
       const isWsAdminOrOwner = wsMember && ['owner', 'admin'].includes(wsMember.role);
 
       const filteredProjects = (workspace.projects || []).filter((p: any) => {
+        if (p.isArchived || p.deletedAt) return false;
         const isProjectMember = (p.members || []).some(
           (pm: any) => (pm.user?._id?.toString() || pm.user?.toString()) === userId.toString(),
         );
@@ -89,24 +99,112 @@ export class WorkspacesService {
     return workspace;
   }
 
-  async updateWorkspace(workspaceId: string, updateWorkspaceDto: UpdateWorkspaceDto) {
-    const workspace = await this.workspaceModel.findByIdAndUpdate(workspaceId, updateWorkspaceDto, { returnDocument: 'after' });
+  async updateWorkspace(
+    workspaceId: string,
+    updateWorkspaceDto: UpdateWorkspaceDto,
+    userId: string,
+  ) {
+    const existing = await this.workspaceModel.findOne({ _id: workspaceId, deletedAt: null });
+    if (!existing) {
+      throw new NotFoundException("Workspace không tồn tại");
+    }
+
+    const requester = existing.members.find(
+      (member: any) =>
+        (member.user?._id?.toString() || member.user?.toString()) === userId.toString()
+        && member.status !== 'pending',
+    );
+    if (!requester || !['owner', 'admin'].includes(requester.role)) {
+      throw new ForbiddenException('Bạn không có quyền chỉnh sửa workspace này');
+    }
+
+    const workspace = await this.workspaceModel.findByIdAndUpdate(
+      workspaceId,
+      updateWorkspaceDto,
+      { returnDocument: 'after' },
+    );
     if (!workspace) {
       throw new NotFoundException("Workspace không tồn tại");
     }
     return workspace;
   }
 
-  async deleteWorkspace(workspaceId: string) {
-    const workspace = await this.workspaceModel.findByIdAndDelete(workspaceId);
-    if (!workspace) {
+  async deleteWorkspace(workspaceId: string, userId: string) {
+    const existing = await this.workspaceModel.findOne({ _id: workspaceId, deletedAt: null });
+    if (!existing) {
       throw new NotFoundException("Workspace không tồn tại");
     }
+
+    const ownerId = existing.owner?._id?.toString() || existing.owner?.toString();
+    const requester = existing.members.find(
+      (member: any) =>
+        (member.user?._id?.toString() || member.user?.toString()) === userId.toString()
+        && member.status !== 'pending',
+    );
+    const isOwner = ownerId === userId.toString() || requester?.role === 'owner';
+    if (!isOwner) {
+      throw new ForbiddenException('Chỉ chủ sở hữu mới có quyền xoá workspace');
+    }
+
+    const deletedAt = new Date();
+    existing.deletedAt = deletedAt;
+    existing.deletedBy = userId as any;
+    await existing.save();
+    await this.projectModel.updateMany(
+      { workspace: workspaceId, deletedAt: null },
+      { $set: { deletedAt, deletedViaWorkspace: true } },
+    );
+    return { message: 'Đã chuyển workspace vào thùng rác', workspaceId };
+  }
+
+  async getDeletedWorkspaces(userId: string, page = 1, limit = 12) {
+    const safePage = Math.max(1, Number(page) || 1);
+    const safeLimit = Math.min(100, Math.max(1, Number(limit) || 12));
+    const query = {
+      owner: userId,
+      deletedAt: { $ne: null },
+    };
+    const [workspaces, total] = await Promise.all([
+      this.workspaceModel.find(query)
+        .sort({ deletedAt: -1 })
+        .skip((safePage - 1) * safeLimit)
+        .limit(safeLimit)
+        .lean(),
+      this.workspaceModel.countDocuments(query),
+    ]);
+    const retentionMs = 30 * 24 * 60 * 60 * 1000;
+    const data = workspaces.map((workspace: any) => ({
+      ...workspace,
+      expiresAt: new Date(new Date(workspace.deletedAt).getTime() + retentionMs),
+    }));
+    return {
+      data,
+      pagination: { page: safePage, limit: safeLimit, total, totalPages: Math.ceil(total / safeLimit) },
+    };
+  }
+
+  async restoreWorkspace(workspaceId: string, userId: string) {
+    const workspace = await this.workspaceModel.findOne({
+      _id: workspaceId,
+      deletedAt: { $ne: null },
+    });
+    if (!workspace) throw new NotFoundException('Không tìm thấy workspace trong thùng rác');
+    if (workspace.owner.toString() !== userId.toString()) {
+      throw new ForbiddenException('Chỉ owner có thể khôi phục workspace');
+    }
+
+    workspace.deletedAt = null;
+    workspace.deletedBy = null;
+    await workspace.save();
+    await this.projectModel.updateMany(
+      { workspace: workspaceId, deletedViaWorkspace: true },
+      { $set: { deletedAt: null, deletedViaWorkspace: false } },
+    );
     return workspace;
   }
 
   async joinWorkspace(workspaceId: string, userId: string) {
-    const workspace = await this.workspaceModel.findById(workspaceId);
+    const workspace = await this.workspaceModel.findOne({ _id: workspaceId, deletedAt: null });
     if (!workspace) {
       throw new NotFoundException("Workspace không tồn tại");
     }
@@ -159,18 +257,45 @@ export class WorkspacesService {
   }
 
   async getDashboardStats(userId: string, workspaceId?: string) {
-    let projectQuery: any = {};
+    const userWorkspaces = await this.workspaceModel.find({
+      members: { $elemMatch: { user: userId, status: { $ne: 'pending' } } },
+      deletedAt: null,
+    }).select('_id members');
 
+    let selectedWorkspaces = userWorkspaces;
     if (workspaceId && workspaceId !== 'all') {
-      projectQuery.workspace = workspaceId;
-    } else {
-      // Tìm tất cả workspace người dùng tham gia
-      const userWorkspaces = await this.workspaceModel.find({
-        members: { $elemMatch: { user: userId, status: { $ne: 'pending' } } },
-      }).select('_id');
-      const wsIds = userWorkspaces.map((w) => w._id);
-      projectQuery.workspace = { $in: wsIds };
+      selectedWorkspaces = userWorkspaces.filter(
+        (workspace) => workspace._id.toString() === workspaceId,
+      );
+      if (selectedWorkspaces.length === 0) {
+        throw new ForbiddenException('Bạn không có quyền xem dashboard của workspace này');
+      }
     }
+
+    const workspaceIds = selectedWorkspaces.map((workspace) => workspace._id);
+    const adminWorkspaceIds = selectedWorkspaces
+      .filter((workspace) => {
+        const membership = workspace.members.find(
+          (member: any) =>
+            (member.user?._id?.toString() || member.user?.toString()) === userId.toString()
+            && member.status !== 'pending',
+        );
+        return membership && ['owner', 'admin'].includes(membership.role);
+      })
+      .map((workspace) => workspace._id);
+
+    const projectQuery: any = {
+      workspace: { $in: workspaceIds },
+      isArchived: { $ne: true },
+      deletedAt: null,
+      $or: [
+        { 'members.user': userId },
+        {
+          isPrivate: { $ne: true },
+          workspace: { $in: adminWorkspaceIds },
+        },
+      ],
+    };
 
     const projects = await this.projectModel
       .find(projectQuery)
@@ -181,7 +306,7 @@ export class WorkspacesService {
 
     // Lấy tất cả task thuộc các project này
     const tasks = await this.taskModel
-      .find({ project: { $in: projectIds }, isArchived: false })
+      .find({ project: { $in: projectIds }, isArchived: false, deletedAt: null })
       .populate('assignees', 'name email profileImage')
       .populate({
         path: 'project',
@@ -347,7 +472,7 @@ export class WorkspacesService {
     const inProgressProjects = projects.filter((p) => (p.status || 'PLANNING').toUpperCase() === 'IN_PROGRESS').length;
 
     return {
-      totalWorkspaces: (await this.workspaceModel.countDocuments({ members: { $elemMatch: { user: userId, status: { $ne: 'pending' } } } })),
+      totalWorkspaces: userWorkspaces.length,
       totalProjects: projects.length,
       inProgressProjects,
       totalTasks,

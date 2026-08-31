@@ -51,6 +51,12 @@ export class Comment extends Document {
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true })
   author!: mongoose.Types.ObjectId;
 
+  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Comment', default: null })
+  parentComment?: mongoose.Types.ObjectId | null;
+
+  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Comment', default: null })
+  replyToComment?: mongoose.Types.ObjectId | null;
+
   @Prop({ type: [CommentMentionSchema], default: [] })
   mentions!: CommentMention[];
 
@@ -65,3 +71,6 @@ export class Comment extends Document {
 }
 
 export const CommentSchema = SchemaFactory.createForClass(Comment);
+
+CommentSchema.index({ task: 1, createdAt: -1 });
+CommentSchema.index({ parentComment: 1, createdAt: 1 });

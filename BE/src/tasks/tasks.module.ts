@@ -9,6 +9,7 @@ import { ActivitiesModule } from '../activities/activities.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 
 import { Workspace, WorkspaceSchema } from '../workspaces/schemas/workspace.schema';
+import { AccessControlModule } from '../access-control/access-control.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { Workspace, WorkspaceSchema } from '../workspaces/schemas/workspace.sche
     ]),
     ActivitiesModule,
     NotificationsModule,
+    AccessControlModule,
   ],
   controllers: [TasksController],
   providers: [TasksService],

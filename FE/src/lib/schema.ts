@@ -39,7 +39,10 @@ export const resetPasswordSchema = z
 export const workspaceSchema = z.object({
   name: z.string().min(3, "Tên phải có ít nhất 3 ký tự"),
   color: z.string().min(3, "Màu sắc phải có ít nhất 3 ký tự"),
-  description: z.string().optional(),
+    description: z.string().optional(),
+    allowMembersCreateProjects: z.boolean().optional(),
+    allowMembersInvite: z.boolean().optional(),
+    defaultProjectPrivate: z.boolean().optional(),
 })
 
 export const projectSchema = z.object({
@@ -63,4 +66,4 @@ export const projectSchema = z.object({
 export const inviteMemberSchema = z.object({
   email: z.string().email("Email không hợp lệ"),
   role: z.enum(["admin", "member", "viewer"]),
-})
+})

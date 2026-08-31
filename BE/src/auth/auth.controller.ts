@@ -1,6 +1,7 @@
-import { Controller, Post, Get, Patch, Body, Query, Res, Inject, Req, HttpException, HttpStatus, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Body, Query, Res, Inject, Req, HttpException, HttpStatus, UseGuards, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import type { Request, Response } from 'express';
-import { ARCJET, type ArcjetNest, validateEmail } from '@arcjet/nest';
+import { ARCJET, type ArcjetNest, tokenBucket, validateEmail } from '@arcjet/nest';
 
 import { AuthService } from './auth.service';
 import { SignUpDto } from './dto/sign-up.dto';
@@ -14,8 +15,28 @@ export class AuthController {
     private readonly authService: AuthService,
     @Inject(ARCJET) private readonly arcjet: ArcjetNest) { }
 
+  private async enforceRateLimit(
+    req: Request,
+    options: { capacity: number; refillRate: number; interval: string },
+  ) {
+    const decision = await this.arcjet
+      .withRule(tokenBucket({ mode: 'LIVE', ...options }))
+      .protect(req, { requested: 1 });
+    if (decision.isDenied()) {
+      throw new HttpException(
+        decision.reason.isRateLimit()
+          ? 'Bạn thao tác quá nhanh. Vui lòng thử lại sau.'
+          : 'Yêu cầu bị từ chối.',
+        decision.reason.isRateLimit()
+          ? HttpStatus.TOO_MANY_REQUESTS
+          : HttpStatus.FORBIDDEN,
+      );
+    }
+  }
+
   @Post('register')
   async signUp(@Req() req: Request, @Body() dto: SignUpDto) {
+    await this.enforceRateLimit(req, { capacity: 3, refillRate: 3, interval: '1h' });
 
     const decision = await this.arcjet
       .withRule(
@@ -38,9 +59,11 @@ export class AuthController {
 
   @Post('login')
   async signIn(
+    @Req() req: Request,
     @Body() dto: SignInDto,
     @Res({ passthrough: true }) res: Response,
   ) {
+    await this.enforceRateLimit(req, { capacity: 5, refillRate: 5, interval: '10m' });
     const { access_token, refresh_token, user } = await this.authService.signIn(dto);
 
     const isProd = process.env.NODE_ENV === 'production';
@@ -95,9 +118,16 @@ export class AuthController {
   }
 
   @Post('logout')
-  async logout(@Res({ passthrough: true }) res: Response) {
-    res.clearCookie('access_token');
-    res.clearCookie('refresh_token', { path: '/' });
+  async logout(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    try {
+      await this.authService.logout(req.cookies?.refresh_token);
+    } finally {
+      res.clearCookie('access_token');
+      res.clearCookie('refresh_token', { path: '/' });
+    }
     return { message: 'Đăng xuất thành công' };
   }
 
@@ -119,6 +149,17 @@ export class AuthController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Post('profile/avatar')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024 } }))
+  async uploadAvatar(
+    @Req() req: Request & { user: { userId: string } },
+    @UploadedFile() file: any,
+  ) {
+    const user = await this.authService.uploadAvatar(req.user.userId, file);
+    return { message: 'Đã cập nhật ảnh đại diện', user };
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Post('change-password')
   async changePassword(
     @Req() req: Request & { user: { userId: string } },
@@ -132,25 +173,29 @@ export class AuthController {
   }
 
   @Post('verify-email')
-  async verifyEmail(@Body() dto: { email: string; otp: string }) {
+  async verifyEmail(@Req() req: Request, @Body() dto: { email: string; otp: string }) {
+    await this.enforceRateLimit(req, { capacity: 5, refillRate: 5, interval: '15m' });
     return this.authService.verifyEmail(dto.email, dto.otp);
   }
 
   @Post('resend-verification')
-  async resendVerification(@Body('email') email: string) {
+  async resendVerification(@Req() req: Request, @Body('email') email: string) {
+    await this.enforceRateLimit(req, { capacity: 3, refillRate: 3, interval: '1h' });
     return this.authService.resendVerification(email);
   }
 
   @Post('forgot-password')
-  async forgotPassword(@Body('email') email: string) {
+  async forgotPassword(@Req() req: Request, @Body('email') email: string) {
+    await this.enforceRateLimit(req, { capacity: 3, refillRate: 3, interval: '1h' });
     return this.authService.forgotPassword(email);
   }
 
   @Post('reset-password')
   async resetPassword(
+    @Req() req: Request,
     @Body() dto: { email: string; otp: string; newPassword: string },
   ) {
+    await this.enforceRateLimit(req, { capacity: 5, refillRate: 5, interval: '15m' });
     return this.authService.resetPassword(dto.email, dto.otp, dto.newPassword);
   }
 }
-

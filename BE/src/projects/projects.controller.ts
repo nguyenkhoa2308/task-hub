@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Req, Query, UseGuards } from '@nestjs/common';
 import { ProjectsService } from './projects.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
@@ -29,6 +29,29 @@ export class ProjectsController {
   findAllByWorkspace(@Param('workspaceId') workspaceId: string, @Req() req: any) {
     const userId = req.user.userId;
     return this.projectsService.getProjectsByWorkspace(workspaceId, userId);
+  }
+
+  @Get('archived/all')
+  findArchived(@Req() req: any, @Query('page') page?: string, @Query('limit') limit?: string) {
+    return this.projectsService.getArchivedProjects(
+      req.user.userId,
+      page ? Number(page) : 1,
+      limit ? Number(limit) : 12,
+    );
+  }
+
+  @Get('trash/all')
+  findDeleted(@Req() req: any, @Query('page') page?: string, @Query('limit') limit?: string) {
+    return this.projectsService.getDeletedProjects(
+      req.user.userId,
+      page ? Number(page) : 1,
+      limit ? Number(limit) : 12,
+    );
+  }
+
+  @Patch(':id/restore')
+  restore(@Param('id') id: string, @Req() req: any) {
+    return this.projectsService.restoreProject(id, req.user.userId);
   }
 
   @Get(':id')

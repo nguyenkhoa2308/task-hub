@@ -76,9 +76,9 @@ const { mutate: resendMutate, isPending: isResending } = useResendVerificationMu
     }
 
     return (
-        <div className="min-h-screen w-full flex flex-col bg-gray-50 selection:bg-blue-800/10 font-sans">
+        <div className="min-h-dvh w-full flex flex-col bg-gray-50 selection:bg-blue-800/10 font-sans">
             {/* Header */}
-            <header className="bg-transparent top-0 z-50">
+            <header className="hidden bg-transparent top-0 z-50 sm:block">
                 <div className="flex justify-between items-center w-full px-6 py-8 max-w-7xl mx-auto">
                     <div className="text-xl tracking-tight font-bold text-blue-600">Task Hub</div>
                     <div className="flex items-center gap-2">
@@ -90,31 +90,31 @@ const { mutate: resendMutate, isPending: isResending } = useResendVerificationMu
             </header>
 
             {/* Main Content */}
-            <main className="flex-grow flex items-center justify-center px-4 py-8">
-                <Card className="w-full max-w-[440px] bg-white rounded-2xl shadow-[0_20px_25px_-5px_rgba(0,0,0,0.05),0_10px_10px_-5px_rgba(0,0,0,0.02)] border border-[#c3c6d7]/20">
-                    <CardHeader className="text-center">
+            <main className="flex flex-1 items-start justify-center sm:items-center sm:px-4 sm:py-8">
+                <Card className="min-h-dvh w-full max-w-[440px] rounded-none border-0 bg-white py-7 shadow-none sm:min-h-0 sm:rounded-2xl sm:border sm:border-[#c3c6d7]/20 sm:shadow-[0_20px_25px_-5px_rgba(0,0,0,0.05),0_10px_10px_-5px_rgba(0,0,0,0.02)]">
+                    <CardHeader className="px-5 text-center sm:px-6">
                         <div className="flex justify-center mb-8">
                             <div className="w-14 h-14 bg-[#eff4ff] rounded-2xl flex items-center justify-center text-[#004ac6] rotate-3 hover:rotate-0 transition-transform duration-500">
                                 <ShieldCheck className="w-7 h-7" />
                             </div>
                         </div>
-                        <CardTitle className="text-2xl text-[#0b1c30] mb-4 tracking-tight font-bold">Xác thực tài khoản</CardTitle>
+                        <CardTitle className="mb-2 text-xl font-bold tracking-tight text-[#0b1c30] sm:mb-4 sm:text-2xl">Xác thực tài khoản</CardTitle>
                         <CardDescription className="text-[14px] text-[#434655] leading-relaxed">
                             Chúng tôi đã gửi mã xác thực gồm 6 chữ số đến email <br />
                             <strong className="text-[#0b1c30]">{email}</strong>.
                             <span className="block mt-1">Vui lòng nhập mã để tiếp tục.</span>
                         </CardDescription>
                     </CardHeader>
-                    <CardContent className="py-4">
+                    <CardContent className="px-5 py-4 sm:px-6">
                         <form className="space-y-8" onSubmit={handleSubmit}>
                             <div className="flex justify-center w-full">
                                 <InputOTP maxLength={6} value={otp} onChange={setOtp}>
-                                    <InputOTPGroup className="flex justify-between gap-2 sm:gap-3 w-full">
+                                    <InputOTPGroup className="flex w-full justify-between gap-1.5 sm:gap-3">
                                         {[0, 1, 2, 3, 4, 5].map((index) => (
                                             <InputOTPSlot
                                                 key={index}
                                                 index={index}
-                                                className="!w-11 !h-14 sm:!w-[52px] sm:!h-14 text-center text-xl font-semibold !border !border-[#c3c6d7]/40 !rounded-xl bg-[#eff4ff]/30 text-[#0b1c30] transition-all focus-visible:!ring-1 focus-visible:!ring-[#004ac6] focus-visible:!border-[#004ac6]"
+                                                className="!h-12 !w-auto min-w-0 flex-1 !rounded-lg !border !border-[#c3c6d7]/40 bg-[#eff4ff]/30 text-center text-lg font-semibold text-[#0b1c30] transition-all focus-visible:!border-[#004ac6] focus-visible:!ring-1 focus-visible:!ring-[#004ac6] sm:!h-14 sm:!w-[52px] sm:flex-none sm:rounded-xl sm:text-xl"
                                             />
                                         ))}
                                     </InputOTPGroup>
@@ -149,7 +149,7 @@ const { mutate: resendMutate, isPending: isResending } = useResendVerificationMu
             </main>
 
             {/* Footer */}
-            <footer className="mt-auto py-8">
+            <footer className="mt-auto hidden py-8 sm:block">
                 <div className="flex flex-col items-center gap-4 w-full">
                     <div className="flex gap-8">
                         <a href="#" className="text-[12px] font-semibold text-[#434655]/60 hover:text-[#004ac6] transition-colors">Support</a>

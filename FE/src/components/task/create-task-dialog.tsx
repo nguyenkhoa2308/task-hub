@@ -37,9 +37,13 @@ const taskSchema = z.object({
   description: z.string().optional(),
   status: z.string(),
   priority: z.string(),
+  startDate: z.string().optional(),
   dueDate: z.string().optional(),
   assignees: z.array(z.string()),
-});
+}).refine(
+  (values) => !values.startDate || !values.dueDate || values.startDate <= values.dueDate,
+  { message: "Ngày bắt đầu không thể sau hạn hoàn thành", path: ["dueDate"] },
+);
 
 export type CreateTaskFormData = z.infer<typeof taskSchema>;
 
@@ -70,6 +74,7 @@ export function CreateTaskDialog({
       description: "",
       status: defaultStatus,
       priority: "Medium",
+      startDate: "",
       dueDate: "",
       assignees: [],
     },
@@ -82,6 +87,7 @@ export function CreateTaskDialog({
         description: "",
         status: defaultStatus || "To Do",
         priority: "Medium",
+        startDate: "",
         dueDate: "",
         assignees: [],
       });
@@ -102,6 +108,7 @@ export function CreateTaskDialog({
         projectId,
         status: values.status,
         priority: values.priority,
+        startDate: values.startDate,
         dueDate: values.dueDate,
         assignees: values.assignees,
       },
@@ -122,8 +129,8 @@ export function CreateTaskDialog({
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent
-        className="sm:max-w-[540px] p-6"
-        onInteractOutside={(e) => e.preventDefault()}
+        className="p-6 sm:max-w-[540px] max-lg:!fixed max-lg:!inset-y-0 max-lg:!right-0 max-lg:!left-auto max-lg:!top-0 max-lg:!flex max-lg:!h-dvh max-lg:!w-full max-lg:!max-w-none max-lg:!translate-x-0 max-lg:!translate-y-0 max-lg:!flex-col max-lg:!gap-3 max-lg:!overflow-y-auto max-lg:!rounded-none max-lg:!border-y-0 max-lg:!border-r-0 max-lg:!p-4 max-lg:!duration-300 max-lg:data-open:slide-in-from-right-full max-lg:data-open:zoom-in-100 max-lg:data-closed:slide-out-to-right-full max-lg:data-closed:zoom-out-100 sm:max-lg:!w-[560px]"
+      // onInteractOutside={(e) => e.preventDefault()}
       >
         <DialogHeader className="pb-2">
           <DialogTitle className="font-extrabold text-xl text-slate-800">
@@ -134,7 +141,8 @@ export function CreateTaskDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-1">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col gap-4 pt-1">
+          <div className="min-h-0 flex-1 overflow-y-auto pr-1">
           <FieldGroup>
             {/* Title */}
             <Controller
@@ -183,7 +191,7 @@ export function CreateTaskDialog({
             />
 
             {/* Status & Priority */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Controller
                 name="status"
                 control={form.control}
@@ -199,6 +207,7 @@ export function CreateTaskDialog({
                           {[
                             { value: "To Do", label: "Cần làm" },
                             { value: "In Progress", label: "Đang làm" },
+                            { value: "Review", label: "Đang review" },
                             { value: "Done", label: "Hoàn thành" },
                           ].map((opt) => (
                             <SelectItem key={opt.value} value={opt.value}>
@@ -240,26 +249,32 @@ export function CreateTaskDialog({
               />
             </div>
 
-            {/* Due Date */}
-            <Controller
-              name="dueDate"
-              control={form.control}
-              render={({ field }) => (
-                <Field>
-                  <FieldContent>
-                    <FieldLabel htmlFor={field.name} className="font-semibold text-slate-700 mb-1">
-                      Hạn hoàn thành
-                    </FieldLabel>
-                    <DatePicker
-                      value={field.value}
-                      onChange={field.onChange}
-                      placeholder="Chọn hạn hoàn thành..."
-                      fontSize={14}
-                    />
-                  </FieldContent>
-                </Field>
-              )}
-            />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Controller
+                name="startDate"
+                control={form.control}
+                render={({ field }) => (
+                  <Field>
+                    <FieldContent>
+                      <FieldLabel htmlFor={field.name} className="mb-1 font-semibold text-slate-700">Ngày bắt đầu</FieldLabel>
+                      <DatePicker value={field.value} onChange={field.onChange} placeholder="Chọn ngày bắt đầu..." fontSize={14} />
+                    </FieldContent>
+                  </Field>
+                )}
+              />
+              <Controller
+                name="dueDate"
+                control={form.control}
+                render={({ field }) => (
+                  <Field>
+                    <FieldContent>
+                      <FieldLabel htmlFor={field.name} className="mb-1 font-semibold text-slate-700">Hạn hoàn thành</FieldLabel>
+                      <DatePicker value={field.value} onChange={field.onChange} placeholder="Chọn hạn hoàn thành..." fontSize={14} />
+                    </FieldContent>
+                  </Field>
+                )}
+              />
+            </div>
 
             {/* Assignees */}
             {projectMembers.length > 0 && (
@@ -283,8 +298,9 @@ export function CreateTaskDialog({
               />
             )}
           </FieldGroup>
+          </div>
 
-          <DialogFooter className="pt-2">
+          <DialogFooter className="shrink-0 border-t border-slate-100 bg-white pt-4 max-sm:grid max-sm:grid-cols-2">
             <Button
               type="button"
               variant="outline"

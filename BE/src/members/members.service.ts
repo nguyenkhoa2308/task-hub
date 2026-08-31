@@ -6,18 +6,21 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { isValidObjectId, Model } from 'mongoose';
 import { Workspace } from '../workspaces/schemas/workspace.schema';
 import { UsersService } from '../users/users.service';
 import { MailService } from '../mail/mail.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { InviteMemberDto } from './dto/invite-member.dto';
+import { Project } from '../projects/schemas/project.schema';
 
 @Injectable()
 export class MembersService {
   constructor(
     @InjectModel(Workspace.name)
     private readonly workspaceModel: Model<Workspace>,
+    @InjectModel(Project.name)
+    private readonly projectModel: Model<Project>,
     private readonly usersService: UsersService,
     private readonly mailService: MailService,
     private readonly notificationsService: NotificationsService,
@@ -29,7 +32,7 @@ export class MembersService {
     dto: InviteMemberDto,
   ) {
     // 1. Tìm workspace
-    const workspace = await this.workspaceModel.findById(workspaceId);
+    const workspace = await this.workspaceModel.findOne({ _id: workspaceId, deletedAt: null });
     if (!workspace) {
       throw new NotFoundException('Workspace không tồn tại');
     }
@@ -38,10 +41,14 @@ export class MembersService {
     const inviterMember = workspace.members.find(
       (m: any) => m.user.toString() === inviterId.toString(),
     );
-    if (!inviterMember || !['owner', 'admin'].includes(inviterMember.role)) {
+    const canMemberInvite = inviterMember?.role === 'member' && workspace.allowMembersInvite;
+    if (!inviterMember || (!['owner', 'admin'].includes(inviterMember.role) && !canMemberInvite)) {
       throw new ForbiddenException(
         'Bạn không có quyền mời thành viên vào workspace này',
       );
+    }
+    if (canMemberInvite && dto.role === 'admin') {
+      throw new ForbiddenException('Thành viên không thể mời quản trị viên');
     }
 
     // 3. Tìm user bằng email
@@ -124,8 +131,11 @@ export class MembersService {
   }
 
   async getPendingMembers(workspaceId: string, requesterId: string) {
+    if (!isValidObjectId(workspaceId)) {
+      throw new BadRequestException('Workspace ID không hợp lệ');
+    }
     const workspace = await this.workspaceModel
-      .findById(workspaceId)
+      .findOne({ _id: workspaceId, deletedAt: null })
       .populate('members.user', 'name email profileImage');
 
     if (!workspace) {
@@ -148,7 +158,7 @@ export class MembersService {
   }
 
   async approveMember(workspaceId: string, approverId: string, userId: string) {
-    const workspace = await this.workspaceModel.findById(workspaceId);
+    const workspace = await this.workspaceModel.findOne({ _id: workspaceId, deletedAt: null });
     if (!workspace) {
       throw new NotFoundException('Workspace không tồn tại');
     }
@@ -191,7 +201,7 @@ export class MembersService {
   }
 
   async rejectMember(workspaceId: string, rejecterId: string, userId: string) {
-    const workspace = await this.workspaceModel.findById(workspaceId);
+    const workspace = await this.workspaceModel.findOne({ _id: workspaceId, deletedAt: null });
     if (!workspace) {
       throw new NotFoundException('Workspace không tồn tại');
     }
@@ -229,6 +239,111 @@ export class MembersService {
     });
 
     return { message: 'Đã từ chối yêu cầu tham gia' };
+  }
+
+  async updateMemberRole(
+    workspaceId: string,
+    requesterId: string,
+    userId: string,
+    role: 'admin' | 'member' | 'viewer',
+  ) {
+    const workspace = await this.getWorkspaceForMemberManagement(workspaceId);
+    const requester = this.findActiveMember(workspace, requesterId);
+    const target = this.findActiveMember(workspace, userId);
+
+    if (!requester || !['owner', 'admin'].includes(requester.role)) {
+      throw new ForbiddenException('Bạn không có quyền thay đổi vai trò thành viên');
+    }
+    if (!target) throw new NotFoundException('Không tìm thấy thành viên');
+    if (target.role === 'owner') {
+      throw new BadRequestException('Hãy chuyển quyền sở hữu thay vì đổi vai trò của owner');
+    }
+    if (requester.role === 'admin' && (target.role === 'admin' || role === 'admin')) {
+      throw new ForbiddenException('Chỉ owner có thể quản lý vai trò admin');
+    }
+
+    target.role = role;
+    await workspace.save();
+    return { message: 'Đã cập nhật vai trò thành viên', role };
+  }
+
+  async removeMember(workspaceId: string, requesterId: string, userId: string) {
+    if (requesterId.toString() === userId.toString()) {
+      return this.leaveWorkspace(workspaceId, requesterId);
+    }
+
+    const workspace = await this.getWorkspaceForMemberManagement(workspaceId);
+    const requester = this.findActiveMember(workspace, requesterId);
+    const target = this.findActiveMember(workspace, userId);
+    if (!requester || !['owner', 'admin'].includes(requester.role)) {
+      throw new ForbiddenException('Bạn không có quyền xóa thành viên');
+    }
+    if (!target) throw new NotFoundException('Không tìm thấy thành viên');
+    if (target.role === 'owner') {
+      throw new ForbiddenException('Không thể xóa owner khỏi workspace');
+    }
+    if (requester.role === 'admin' && target.role === 'admin') {
+      throw new ForbiddenException('Admin không thể xóa admin khác');
+    }
+
+    await this.detachMember(workspace, userId);
+    return { message: 'Đã xóa thành viên khỏi workspace' };
+  }
+
+  async leaveWorkspace(workspaceId: string, userId: string) {
+    const workspace = await this.getWorkspaceForMemberManagement(workspaceId);
+    const member = this.findActiveMember(workspace, userId);
+    if (!member) throw new NotFoundException('Bạn không thuộc workspace này');
+    if (member.role === 'owner' || workspace.owner.toString() === userId.toString()) {
+      throw new BadRequestException('Owner phải chuyển quyền sở hữu trước khi rời workspace');
+    }
+
+    await this.detachMember(workspace, userId);
+    return { message: 'Bạn đã rời workspace' };
+  }
+
+  async transferOwnership(workspaceId: string, requesterId: string, userId: string) {
+    if (!userId) throw new BadRequestException('Thiếu thành viên nhận quyền sở hữu');
+    if (requesterId.toString() === userId.toString()) {
+      throw new BadRequestException('Bạn đang là owner của workspace');
+    }
+
+    const workspace = await this.getWorkspaceForMemberManagement(workspaceId);
+    const owner = this.findActiveMember(workspace, requesterId);
+    const nextOwner = this.findActiveMember(workspace, userId);
+    if (!owner || owner.role !== 'owner' || workspace.owner.toString() !== requesterId.toString()) {
+      throw new ForbiddenException('Chỉ owner hiện tại có thể chuyển quyền sở hữu');
+    }
+    if (!nextOwner) throw new NotFoundException('Người nhận phải là thành viên đang hoạt động');
+
+    owner.role = 'admin';
+    nextOwner.role = 'owner';
+    workspace.owner = nextOwner.user;
+    await workspace.save();
+    return { message: 'Đã chuyển quyền sở hữu workspace', owner: userId };
+  }
+
+  private async getWorkspaceForMemberManagement(workspaceId: string) {
+    const workspace = await this.workspaceModel.findOne({ _id: workspaceId, deletedAt: null });
+    if (!workspace) throw new NotFoundException('Workspace không tồn tại');
+    return workspace;
+  }
+
+  private findActiveMember(workspace: Workspace, userId: string): any {
+    return workspace.members.find(
+      (member: any) => member.user.toString() === userId.toString() && member.status !== 'pending',
+    );
+  }
+
+  private async detachMember(workspace: Workspace, userId: string) {
+    workspace.members = workspace.members.filter(
+      (member: any) => member.user.toString() !== userId.toString(),
+    ) as any;
+    await workspace.save();
+    await this.projectModel.updateMany(
+      { workspace: workspace._id, 'members.user': userId },
+      { $pull: { members: { user: userId } } },
+    );
   }
 
   private getRoleLabel(role: string): string {

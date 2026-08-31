@@ -6,11 +6,12 @@ import { Notification } from './schemas/notification.schema';
 
 export interface CreateNotificationDto {
   recipient: string;
-  sender: string;
+  sender?: string;
   type: string;
   title: string;
   message: string;
   link?: string;
+  dedupeKey?: string;
 }
 
 @Injectable()
@@ -24,9 +25,17 @@ export class NotificationsService {
 
   async createNotification(dto: CreateNotificationDto) {
     // Đừng tự gửi thông báo cho chính mình
-    if (dto.recipient === dto.sender) return null;
+    if (dto.sender && dto.recipient === dto.sender) return null;
 
-    const noti = await this.notificationModel.create(dto);
+    let noti: Notification;
+    try {
+      noti = await this.notificationModel.create(dto);
+    } catch (error: any) {
+      // A unique dedupe key makes scheduled notifications safe across restarts
+      // and across multiple backend instances.
+      if (error?.code === 11000 && dto.dedupeKey) return null;
+      throw error;
+    }
     const populated = await this.notificationModel
       .findById(noti._id)
       .populate('sender', 'name email profileImage');
@@ -42,12 +51,28 @@ export class NotificationsService {
     return populated;
   }
 
-  async getUserNotifications(userId: string, limit = 20) {
-    return this.notificationModel
-      .find({ recipient: userId })
-      .populate('sender', 'name email profileImage')
-      .sort({ createdAt: -1 })
-      .limit(limit);
+  async getUserNotifications(userId: string, page = 1, limit = 20) {
+    const safePage = Math.max(1, Number(page) || 1);
+    const safeLimit = Math.min(50, Math.max(1, Number(limit) || 20));
+    const query = { recipient: userId };
+    const [data, total] = await Promise.all([
+      this.notificationModel
+        .find(query)
+        .populate('sender', 'name email profileImage')
+        .sort({ createdAt: -1 })
+        .skip((safePage - 1) * safeLimit)
+        .limit(safeLimit),
+      this.notificationModel.countDocuments(query),
+    ]);
+    return {
+      data,
+      pagination: {
+        page: safePage,
+        limit: safeLimit,
+        total,
+        totalPages: Math.ceil(total / safeLimit),
+      },
+    };
   }
 
   async getUnreadCount(userId: string) {

@@ -12,8 +12,6 @@ import {
   ArrowRight,
   RefreshCw,
   Calendar,
-  Sparkles,
-  Building2,
   PieChart as PieChartIcon,
   BarChart3,
   Activity,
@@ -34,10 +32,12 @@ import {
   Tooltip,
   Legend,
 } from "recharts";
-import { useGetWorkspaces, useGetWorkspaceDashboard } from "@/hooks/use-workspace";
+import { useGetWorkspaceDashboard, type DashboardTask } from "@/hooks/use-workspace";
 import { TaskDetailModal } from "@/components/task/task-detail-modal";
 import { Skeleton } from "@/components/ui/skeleton";
-import { format, differenceInDays } from "date-fns";
+import { Button } from "@/components/ui/button";
+import { differenceInDays } from "date-fns";
+import { PageErrorState } from "@/components/ui/page-state";
 
 const PROJECT_STATUS_LABELS: Record<string, { label: string; bg: string; text: string; dot: string }> = {
   PLANNING: { label: "Lập kế hoạch", bg: "bg-purple-50 border-purple-200", text: "text-purple-700", dot: "bg-purple-500" },
@@ -47,44 +47,29 @@ const PROJECT_STATUS_LABELS: Record<string, { label: string; bg: string; text: s
   CANCELLED: { label: "Đã hủy", bg: "bg-rose-50 border-rose-200", text: "text-rose-700", dot: "bg-rose-500" },
 };
 
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 
 export default function DashboardPage() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const selectedWorkspaceId = searchParams.get("workspaceId") || "all";
-  const [selectedTask, setSelectedTask] = useState<any | null>(null);
+  const [selectedTask, setSelectedTask] = useState<DashboardTask | null>(null);
 
-  const { data: workspaces } = useGetWorkspaces();
   const {
     data: stats,
     isLoading: isLoadingStats,
     isFetching: isFetchingStats,
     refetch,
     isRefetching,
+    isError,
   } = useGetWorkspaceDashboard(selectedWorkspaceId === "all" ? undefined : selectedWorkspaceId);
 
   const showSkeleton = isLoadingStats || isFetchingStats;
 
-  const handleWorkspaceChange = (wsId: string) => {
-    if (wsId === "all") {
-      router.push("/dashboard");
-    } else {
-      router.push(`/dashboard?workspaceId=${wsId}`);
-    }
-  };
+  if (isError) {
+    return <PageErrorState title="Không thể tải Dashboard" description="Không thể tổng hợp dữ liệu workspace lúc này." onRetry={() => refetch()} />;
+  }
 
-  const formatDueDate = (dateString?: string) => {
-    if (!dateString) return null;
-    try {
-      const date = new Date(dateString);
-      return format(date, "dd/MM/yyyy");
-    } catch {
-      return null;
-    }
-  };
-
-  const getPriorityBadge = (priority: string) => {
+  const getPriorityBadge = (priority?: string) => {
     const p = priority?.toLowerCase();
     if (p === "high" || p === "cao") {
       return <span className="px-2.5 py-0.5 text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200 rounded-full">Cao</span>;
@@ -110,34 +95,36 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="w-full space-y-6 pb-12">
       {/* Header Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white rounded-2xl shadow-xs">
+      <div className="flex flex-col gap-4 border-b border-slate-200/80 pb-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900">
-            Dashboard Báo cáo & Thống kê
+          <h1 className="flex items-center gap-2.5 text-2xl font-extrabold tracking-tight text-slate-800">
+            <BarChart3 className="size-7 shrink-0 text-blue-600" />
+            Tổng quan
           </h1>
-          <p className="text-slate-500 text-sm sm:text-base mt-1">
-            Theo dõi xu hướng công việc, tiến độ dự án và hiệu suất toàn diện
+          <p className="mt-1 text-sm text-slate-500">
+            Theo dõi công việc, tiến độ dự án và hiệu suất theo workspace.
           </p>
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-3">
-          <button
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
             onClick={() => refetch()}
             disabled={isRefetching}
-            className="flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200/80 border border-slate-200 text-slate-700 font-semibold text-xs rounded-xl transition-all hover:text-slate-900 active:scale-95 disabled:opacity-50"
+            className="gap-2"
             title="Làm mới dữ liệu"
           >
             <RefreshCw className={`size-4 ${isRefetching ? "animate-spin" : ""}`} />
             <span>Làm mới</span>
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* 4 Metric Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {showSkeleton ? (
           <>
             <Skeleton className="h-28 w-full rounded-2xl bg-slate-100/80" />
@@ -148,7 +135,7 @@ export default function DashboardPage() {
         ) : (
           <>
             {/* Card 1: Total Projects */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-5 hover:border-purple-300 hover:shadow-md transition-all group">
+            <div className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-colors hover:border-purple-300">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-slate-500 text-xs font-semibold uppercase tracking-wider">Tổng số dự án</span>
                 <div className="p-2 bg-purple-50 text-purple-600 rounded-xl">
@@ -164,7 +151,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Card 2: Total Tasks */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-5 hover:border-blue-300 hover:shadow-md transition-all group">
+            <div className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-colors hover:border-blue-300">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-slate-500 text-xs font-semibold uppercase tracking-wider">Tổng công việc</span>
                 <div className="p-2 bg-blue-50 text-blue-600 rounded-xl">
@@ -181,7 +168,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Card 3: To Do */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-5 hover:border-slate-300 hover:shadow-md transition-all group">
+            <div className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-colors hover:border-slate-300">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-slate-500 text-xs font-semibold uppercase tracking-wider">Cần làm</span>
                 <div className="p-2 bg-slate-100 text-slate-600 rounded-xl">
@@ -195,7 +182,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Card 4: In Progress */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-5 hover:border-sky-300 hover:shadow-md transition-all group">
+            <div className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-colors hover:border-sky-300">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-slate-500 text-xs font-semibold uppercase tracking-wider">Đang thực hiện</span>
                 <div className="p-2 bg-sky-50 text-sky-600 rounded-xl">
@@ -212,7 +199,7 @@ export default function DashboardPage() {
       </div>
 
       {/* 4 Charts Grid (2x2) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {showSkeleton ? (
           <>
             <Skeleton className="h-80 w-full rounded-2xl bg-slate-100/80" />
@@ -373,7 +360,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Bottom Grid: Recent Projects | Upcoming | Overdue */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {showSkeleton ? (
           <>
             <Skeleton className="h-96 w-full rounded-2xl bg-slate-100/80" />
@@ -477,7 +464,7 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1">
-                  {stats.upcomingTasks7Days.map((task: any) => {
+                  {stats.upcomingTasks7Days.map((task) => {
                     const daysRemaining = task.dueDate ? differenceInDays(new Date(task.dueDate), new Date()) : 0;
                     return (
                       <div
@@ -531,7 +518,7 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1">
-                  {stats.overdueTasksList.map((task: any) => {
+                  {stats.overdueTasksList.map((task) => {
                     const overdueDays = task.dueDate ? differenceInDays(new Date(), new Date(task.dueDate)) : 0;
                     return (
                       <div

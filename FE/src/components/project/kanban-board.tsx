@@ -1,22 +1,20 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { Plus, GripVertical, Clock, Trash2, ArrowUpDown, Filter, Eye, Lock } from "lucide-react";
+import { useEffect, useState, useMemo } from "react";
+import { Plus, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useGetTasksByProject,
   useUpdateTask,
   useDeleteTask,
+  useRestoreTask,
 } from "@/hooks/use-task";
 import { CreateTaskDialog } from "@/components/task/create-task-dialog";
 import { TaskDetailModal } from "@/components/task/task-detail-modal";
-import { formatRelativeDays } from "@/lib/utils";
+import { TASK_KANBAN_COLUMNS, TaskKanbanBoard, mapTaskStatusToColumn, type TaskColumnStatus } from "@/components/task/task-kanban-board";
 
-export type TaskColumnStatus = "todo" | "in_progress" | "review" | "done";
 export type SortOption = "deadline_priority" | "priority_only" | "deadline_only" | "title_az";
 
 export interface KanbanTask {
@@ -35,86 +33,49 @@ interface KanbanBoardProps {
   projectId?: string;
   projectMembers?: any[];
   canEdit?: boolean;
+  projectStatus?: string;
 }
 
-const COLUMNS: {
-  id: TaskColumnStatus;
-  statusValue: string;
-  title: string;
-  accentBg: string;
-  borderColor: string;
-  dotColor: string;
-  badgeBg: string;
-  badgeText: string;
-}[] = [
-    {
-      id: "todo",
-      statusValue: "To Do",
-      title: "Cần làm",
-      accentBg: "bg-slate-50/80",
-      borderColor: "border-slate-200/80",
-      dotColor: "bg-slate-400",
-      badgeBg: "bg-white",
-      badgeText: "text-slate-600",
-    },
-    {
-      id: "in_progress",
-      statusValue: "In Progress",
-      title: "Đang thực hiện",
-      accentBg: "bg-blue-50/40",
-      borderColor: "border-blue-200/80",
-      dotColor: "bg-blue-500 animate-pulse",
-      badgeBg: "bg-blue-100/80",
-      badgeText: "text-blue-700",
-    },
-    {
-      id: "review",
-      statusValue: "Review",
-      title: "Đang review",
-      accentBg: "bg-purple-50/40",
-      borderColor: "border-purple-200/80",
-      dotColor: "bg-purple-500",
-      badgeBg: "bg-purple-100/80",
-      badgeText: "text-purple-700",
-    },
-    {
-      id: "done",
-      statusValue: "Done",
-      title: "Hoàn thành",
-      accentBg: "bg-emerald-50/40",
-      borderColor: "border-emerald-200/80",
-      dotColor: "bg-emerald-500",
-      badgeBg: "bg-emerald-100/80",
-      badgeText: "text-emerald-700",
-    },
-  ];
 
-const mapStatusToColumn = (status?: string): TaskColumnStatus => {
-  if (!status) return "todo";
-  const upper = status.toUpperCase();
-  if (upper.includes("PROGRESS")) return "in_progress";
-  if (upper.includes("REVIEW")) return "review";
-  if (upper.includes("DONE") || upper.includes("COMPLETED")) return "done";
-  return "todo";
-};
-
-const PRIORITY_SCORE: Record<string, number> = {
-  High: 3,
-  Medium: 2,
-  Low: 1,
-};
-
-export function KanbanBoard({ projectId, projectMembers = [], canEdit = true }: KanbanBoardProps) {
+export function KanbanBoard({ projectId, projectMembers = [], canEdit = true, projectStatus = 'PLANNING' }: KanbanBoardProps) {
+  const statusLocks: Record<string, string> = { ON_HOLD: 'Dự án đang tạm dừng', COMPLETED: 'Dự án đã hoàn thành', CANCELLED: 'Dự án đã hủy' };
+  const projectLockMessage = statusLocks[projectStatus];
+  const taskCanEdit = canEdit && !projectLockMessage;
   const queryClient = useQueryClient();
-  const { data: remoteTasks } = useGetTasksByProject(projectId || "", { sortBy: "deadline_priority" });
+  const [columnLimits, setColumnLimits] = useState<Record<TaskColumnStatus, number>>({
+    todo: 20,
+    in_progress: 20,
+    review: 20,
+    done: 20,
+  });
+  const todoQuery = useGetTasksByProject(projectId || "", { sortBy: "deadline_priority", status: "To Do", page: 1, limit: columnLimits.todo });
+  const progressQuery = useGetTasksByProject(projectId || "", { sortBy: "deadline_priority", status: "In Progress", page: 1, limit: columnLimits.in_progress });
+  const reviewQuery = useGetTasksByProject(projectId || "", { sortBy: "deadline_priority", status: "Review", page: 1, limit: columnLimits.review });
+  const doneQuery = useGetTasksByProject(projectId || "", { sortBy: "deadline_priority", status: "Done", page: 1, limit: columnLimits.done });
+  const remoteTasks = useMemo(() => {
+    const merged = [
+      ...(todoQuery.data?.data || []),
+      ...(progressQuery.data?.data || []),
+      ...(reviewQuery.data?.data || []),
+      ...(doneQuery.data?.data || []),
+    ];
+    const uniqueById = new Map<string, any>();
+    merged.forEach((task: any) => {
+      const taskId = task._id || task.id;
+      if (taskId) uniqueById.set(taskId, task);
+    });
+    return Array.from(uniqueById.values());
+  }, [todoQuery.data, progressQuery.data, reviewQuery.data, doneQuery.data]);
   const { mutate: updateTaskMutate } = useUpdateTask();
   const { mutate: deleteTaskMutate } = useDeleteTask();
+  const { mutate: restoreTaskMutate } = useRestoreTask();
 
   const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<TaskColumnStatus | null>(null);
 
   // Pending status overrides — prevent flicker when sortBy changes mid-flight
   const [pendingStatusMap, setPendingStatusMap] = useState<Record<string, string>>({});
+  const [pendingTaskMap, setPendingTaskMap] = useState<Record<string, KanbanTask>>({});
 
   // Modal States
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -124,36 +85,72 @@ export function KanbanBoard({ projectId, projectMembers = [], canEdit = true }: 
   // Derive display tasks: apply pending overrides, auto-clear when server catches up
   const tasks = useMemo(() => {
     if (!Array.isArray(remoteTasks)) return [];
-    const toClean: string[] = [];
     const result = remoteTasks.map((t: any) => {
       const taskId = t._id || t.id;
       const pending = pendingStatusMap[taskId];
       if (pending) {
-        if (t.status === pending) {
-          toClean.push(taskId);
-          return t;
-        }
+        if (t.status === pending) return t;
         return { ...t, status: pending };
       }
       return t;
     });
-    if (toClean.length > 0) {
-      Promise.resolve().then(() => {
-        setPendingStatusMap((prev) => {
-          const next = { ...prev };
-          toClean.forEach((id) => delete next[id]);
-          return next;
-        });
-      });
-    }
+    const visibleIds = new Set(result.map((task: any) => task._id || task.id).filter(Boolean));
+    Object.entries(pendingTaskMap).forEach(([taskId, task]) => {
+      if (!visibleIds.has(taskId)) result.push(task);
+    });
     return result;
+  }, [remoteTasks, pendingStatusMap, pendingTaskMap]);
+
+  useEffect(() => {
+    const caughtUpIds = remoteTasks
+      .filter((task: any) => pendingStatusMap[task._id || task.id] === task.status)
+      .map((task: any) => task._id || task.id)
+      .filter(Boolean);
+    if (caughtUpIds.length === 0) return;
+    setPendingStatusMap((prev) => {
+      const next = { ...prev };
+      caughtUpIds.forEach((id: string) => delete next[id]);
+      return next;
+    });
+    setPendingTaskMap((prev) => {
+      const next = { ...prev };
+      caughtUpIds.forEach((id: string) => delete next[id]);
+      return next;
+    });
   }, [remoteTasks, pendingStatusMap]);
 
-  // Tasks directly from Backend (sorted by BE query)
-  const sortedTasks = useMemo(() => tasks, [tasks]);
+  // Keep optimistic moves in the same order as the backend, so a task does not
+  // jump again when the SSE confirmation replaces it with server data.
+  const sortedTasks = useMemo(() => {
+    const priorityWeight: Record<string, number> = { HIGH: 3, MEDIUM: 2, LOW: 1 };
+    const now = Date.now();
+    const soonThreshold = now + 3 * 24 * 60 * 60 * 1000;
+    const bucket = (task: KanbanTask) => {
+      if (mapTaskStatusToColumn(task.status) === 'done') return 3;
+      if (!task.dueDate) return 2;
+      const dueTime = new Date(task.dueDate).getTime();
+      if (dueTime < now) return 0;
+      if (dueTime <= soonThreshold) return 1;
+      return 2;
+    };
+    return [...tasks].sort((a, b) => {
+      const bucketDiff = bucket(a) - bucket(b);
+      if (bucketDiff !== 0) return bucketDiff;
+      const priorityDiff = (priorityWeight[(b.priority || '').toUpperCase()] || 0)
+        - (priorityWeight[(a.priority || '').toUpperCase()] || 0);
+      if (priorityDiff !== 0) return priorityDiff;
+      const dueDiff = (a.dueDate ? new Date(a.dueDate).getTime() : Infinity)
+        - (b.dueDate ? new Date(b.dueDate).getTime() : Infinity);
+      if (dueDiff !== 0) return dueDiff;
+      const createdDiff = (b.createdAt ? new Date(b.createdAt).getTime() : 0)
+        - (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+      if (createdDiff !== 0) return createdDiff;
+      return (a._id || a.id || '').localeCompare(b._id || b.id || '');
+    });
+  }, [tasks]);
 
   const handleDragStart = (e: React.DragEvent, taskId: string) => {
-    if (!canEdit) {
+    if (!taskCanEdit) {
       e.preventDefault();
       toast.error("Bạn đang ở chế độ Chỉ xem (Viewer), không được kéo thả công việc");
       return;
@@ -185,30 +182,38 @@ export function KanbanBoard({ projectId, projectMembers = [], canEdit = true }: 
     if (!taskId) return;
 
     const currentTask = tasks.find((t) => (t._id || t.id) === taskId);
-    if (currentTask && mapStatusToColumn(currentTask.status) === targetColumnId) {
+    if (currentTask && mapTaskStatusToColumn(currentTask.status) === targetColumnId) {
       // Nếu thả lại đúng cột cũ thì không làm gì
       return;
     }
 
-    const colConfig = COLUMNS.find((c) => c.id === targetColumnId);
+    const colConfig = TASK_KANBAN_COLUMNS.find((c) => c.id === targetColumnId);
     const newStatusValue = colConfig?.statusValue || "To Do";
+    const startsProject = projectStatus === 'PLANNING' && targetColumnId !== 'todo';
+    const allTasksWillBeDone = targetColumnId === 'done' && tasks.length > 0 && tasks.every((task) => {
+      const id = task._id || task.id;
+      return id === taskId || mapTaskStatusToColumn(task.status) === 'done';
+    });
 
     // Immediately override display status to prevent flicker when sort refetches
     setPendingStatusMap((prev) => ({ ...prev, [taskId]: newStatusValue }));
+    if (currentTask) {
+      setPendingTaskMap((prev) => ({ ...prev, [taskId]: { ...currentTask, status: newStatusValue } }));
+    }
 
     if (taskId && !taskId.startsWith("temp-")) {
       updateTaskMutate(
         { id: taskId, data: { status: newStatusValue } },
         {
           onSuccess: () => {
-            // Don't clear pending here — auto-cleared in tasks memo when server data arrives
-            queryClient.invalidateQueries({ queryKey: ["tasks", projectId] });
-            queryClient.invalidateQueries({ queryKey: ["my-tasks"] });
-            queryClient.invalidateQueries({ queryKey: ["projects"] });
-            queryClient.invalidateQueries({ queryKey: ["project", projectId] });
+            if (startsProject) toast.info('Dự án đã chuyển sang Đang thực hiện');
+            if (allTasksWillBeDone) {
+              toast.info('Tất cả công việc đã xong. Bạn có thể hoàn thành dự án khi đã bàn giao.');
+            }
           },
           onError: () => {
             setPendingStatusMap((prev) => { const next = { ...prev }; delete next[taskId]; return next; });
+            setPendingTaskMap((prev) => { const next = { ...prev }; delete next[taskId]; return next; });
             queryClient.invalidateQueries({ queryKey: ["tasks", projectId] });
             toast.error("Không thể cập nhật trạng thái công việc");
           },
@@ -224,23 +229,32 @@ export function KanbanBoard({ projectId, projectMembers = [], canEdit = true }: 
     setIsCreateModalOpen(true);
   };
 
-  const handleDeleteTask = (e: React.MouseEvent, taskId: string) => {
-    e.stopPropagation();
+  const handleDeleteTask = (taskId: string) => {
     if (!taskId) return;
-
-    if (confirm("Bạn có chắc chắn muốn xóa công việc này?")) {
-      deleteTaskMutate(taskId, {
-        onSuccess: () => {
-          toast.success("Đã xóa công việc");
-          queryClient.invalidateQueries({ queryKey: ["tasks", projectId] });
-          queryClient.invalidateQueries({ queryKey: ["projects"] });
-          queryClient.invalidateQueries({ queryKey: ["project", projectId] });
-        },
-        onError: () => {
-          toast.error("Không thể xóa công việc");
-        },
-      });
-    }
+    deleteTaskMutate(taskId, {
+      onSuccess: () => {
+        toast.success("Đã chuyển công việc vào thùng rác", {
+          duration: 8000,
+          action: {
+            label: "Hoàn tác",
+            onClick: () => restoreTaskMutate(taskId, {
+              onSuccess: () => {
+                toast.success("Đã khôi phục công việc");
+                queryClient.invalidateQueries({ queryKey: ["tasks", projectId] });
+                queryClient.invalidateQueries({ queryKey: ["my-tasks"] });
+                queryClient.invalidateQueries({ queryKey: ["projects"] });
+              },
+            }),
+          },
+        });
+        queryClient.invalidateQueries({ queryKey: ["tasks", projectId] });
+        queryClient.invalidateQueries({ queryKey: ["projects"] });
+        queryClient.invalidateQueries({ queryKey: ["project", projectId] });
+      },
+      onError: () => {
+        toast.error("Không thể xóa công việc");
+      },
+    });
   };
 
   return (
@@ -252,7 +266,7 @@ export function KanbanBoard({ projectId, projectMembers = [], canEdit = true }: 
         </span>
         <Button
           onClick={() => handleOpenCreateModal("To Do")}
-          disabled={!canEdit}
+          disabled={!taskCanEdit}
           size="sm"
           className="gap-1.5 font-bold cursor-pointer shadow-xs hover:shadow-md transition-all rounded-xl h-8 text-xs"
         >
@@ -261,178 +275,39 @@ export function KanbanBoard({ projectId, projectMembers = [], canEdit = true }: 
         </Button>
       </div>
 
-      {!canEdit && (
+      {!taskCanEdit && (
         <div className="mb-4 p-3 bg-amber-50 border border-amber-200/80 rounded-xl text-amber-800 text-xs font-semibold flex items-center gap-2">
           <Lock className="size-4 text-amber-600 shrink-0" />
-          <span>Bạn đang ở chế độ <strong>Chỉ xem (Viewer)</strong>. Tính năng di chuyển thẻ Kanban và thao tác công việc đã bị khóa.</span>
+          <span>{projectLockMessage || 'Bạn đang ở chế độ Chỉ xem (Viewer). Tính năng kéo thả và chỉnh sửa công việc đã bị khóa.'}</span>
         </div>
       )}
 
-      {/* Board Columns */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
-        {COLUMNS.map((col) => {
-          const columnTasks = sortedTasks.filter(
-            (t) => mapStatusToColumn(t.status) === col.id
-          );
-          const isHovered = dragOverColumn === col.id;
-
-          return (
-            <div
-              key={col.id}
-              onDragOver={(e) => handleDragOver(e, col.id)}
-              onDragLeave={(e) => handleDragLeave(e, col.id)}
-              onDrop={(e) => handleDrop(e, col.id)}
-              className={`rounded-2xl p-4 transition-all duration-200 flex flex-col min-h-[440px] ${col.accentBg
-                } border ${isHovered
-                  ? "border-blue-400 ring-2 ring-blue-500/20 bg-blue-50/60 shadow-lg scale-[1.01]"
-                  : col.borderColor
-                }`}
-            >
-              {/* Column Header */}
-              <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-200/60">
-                <div className="flex items-center gap-2">
-                  <span className={`size-2.5 rounded-full ${col.dotColor}`} />
-                  <h3 className="font-extrabold text-sm text-slate-800 tracking-tight">
-                    {col.title}
-                  </h3>
-                  <span
-                    className={`text-xs font-extrabold px-2 py-0.5 rounded-full border border-slate-200/60 ${col.badgeBg} ${col.badgeText}`}
-                  >
-                    {columnTasks.length}
-                  </span>
-                </div>
-
-                {canEdit && (
-                  <button
-                    type="button"
-                    onClick={() => handleOpenCreateModal(col.statusValue)}
-                    className="p-1 text-slate-400 hover:text-blue-600 hover:bg-white rounded-lg transition-colors cursor-pointer"
-                    title={`Thêm công việc vào ${col.title}`}
-                  >
-                    <Plus className="size-4" />
-                  </button>
-                )}
-              </div>
-
-              {/* Task List in Column */}
-              <div className="space-y-3 flex-1 overflow-y-auto max-h-[580px] pr-0.5">
-                {columnTasks.length === 0 ? (
-                  <div
-                    className={`py-12 text-center text-xs font-semibold rounded-xl border border-dashed transition-colors ${isHovered
-                      ? "border-blue-400 text-blue-600 bg-white/80"
-                      : "border-slate-200/80 text-slate-400 bg-white/40"
-                      }`}
-                  >
-                    {isHovered ? "Thả công việc vào đây" : "Chưa có công việc nào"}
-                  </div>
-                ) : (
-                  columnTasks.map((task) => {
-                    const taskId = task._id || task.id || "";
-                    const isBeingDragged = draggingTaskId === taskId;
-
-                    // Check if overdue
-                    const isDone = task.status === "Done" || task.status === "done" || task.status === "Completed";
-                    const isOverdue = task.dueDate && new Date(task.dueDate).getTime() < Date.now() && !isDone;
-
-                    return (
-                      <div
-                        key={taskId}
-                        draggable={canEdit}
-                        onDragStart={(e) => handleDragStart(e, taskId)}
-                        onClick={() => setSelectedTaskForDetail(task)}
-                        className={`group bg-white border rounded-xl p-3.5 shadow-2xs hover:shadow-md transition-all duration-200 cursor-pointer relative ${isOverdue
-                          ? "border-rose-400 ring-1 ring-rose-400/50 border-2"
-                          : "border-slate-200/80 hover:border-slate-300"
-                          } ${isBeingDragged
-                            ? "opacity-40 scale-95 border-dashed border-blue-400"
-                            : ""
-                          }`}
-                      >
-                        {/* Priority Badge & Actions */}
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-1.5">
-                            <span
-                              className={`text-[10px] font-semibold px-2 py-0.5 rounded-md uppercase tracking-wider ${task.priority === "High"
-                                ? "bg-rose-50 text-rose-700 border border-rose-200/80"
-                                : task.priority === "Low"
-                                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200/80"
-                                  : "bg-amber-50 text-amber-700 border border-amber-200/80"
-                                }`}
-                            >
-                              {task.priority === "High" ? "Cao" : task.priority === "Low" ? "Thấp" : "Trung bình"}
-                            </span>
-
-                            {isOverdue && (
-                              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-rose-50 text-rose-700 border border-rose-200/80">
-                                Quá hạn
-                              </span>
-                            )}
-                          </div>
-
-                          {canEdit && (
-                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button
-                                type="button"
-                                onClick={(e) => handleDeleteTask(e, taskId)}
-                                className="p-1 text-slate-400 hover:text-rose-500 rounded-md transition-colors"
-                                title="Xóa công việc"
-                              >
-                                <Trash2 className="size-3.5" />
-                              </button>
-                              <GripVertical className="size-3.5 text-slate-300 cursor-grab active:cursor-grabbing" />
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Task Title & Description */}
-                        <h4 className="text-sm font-bold text-slate-800 line-clamp-2 mb-1 group-hover:text-blue-600 transition-colors">
-                          {task.title}
-                        </h4>
-                        {task.description && (
-                          <p className="text-xs text-slate-500 line-clamp-2 mb-3 leading-relaxed">
-                            {task.description}
-                          </p>
-                        )}
-
-                        {/* Task Footer Meta */}
-                        <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
-                          {task.dueDate ? (
-                            <span
-                              className={`flex items-center gap-1 font-medium ${isOverdue ? "text-rose-600 font-semibold" : "text-slate-500"
-                                }`}
-                            >
-                              <Clock className={`size-3 ${isOverdue ? "text-rose-500" : "text-slate-400"}`} />
-                              {formatRelativeDays(task.dueDate)}
-                            </span>
-                          ) : (
-                            <span />
-                          )}
-
-                          {Array.isArray(task.assignees) && task.assignees.length > 0 && (
-                            <div className="flex -space-x-1.5">
-                              {task.assignees.slice(0, 3).map((u: any, idx: number) => {
-                                const userObj = u.user || u;
-                                return (
-                                  <Avatar key={idx} className="size-5 border border-white">
-                                    <AvatarImage src={userObj?.profileImage} />
-                                    <AvatarFallback className="text-[9px] font-semibold">
-                                      {userObj?.name?.charAt(0)?.toUpperCase() || "?"}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+      <TaskKanbanBoard
+        tasks={sortedTasks}
+        canEdit={taskCanEdit}
+        draggingTaskId={draggingTaskId}
+        dragOverColumn={dragOverColumn}
+        columnTotals={{
+          todo: todoQuery.data?.pagination.total || 0,
+          in_progress: progressQuery.data?.pagination.total || 0,
+          review: reviewQuery.data?.pagination.total || 0,
+          done: doneQuery.data?.pagination.total || 0,
+        }}
+        loadingColumns={{
+          todo: todoQuery.isFetching,
+          in_progress: progressQuery.isFetching,
+          review: reviewQuery.isFetching,
+          done: doneQuery.isFetching,
+        }}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={(event, columnId) => handleDrop(event, columnId)}
+        onTaskClick={setSelectedTaskForDetail}
+        onDeleteTask={taskCanEdit ? handleDeleteTask : undefined}
+        onCreateTask={taskCanEdit ? handleOpenCreateModal : undefined}
+        onLoadMore={(columnId) => setColumnLimits((limits) => ({ ...limits, [columnId]: limits[columnId] + 20 }))}
+      />
 
       {/* Modal Create Task */}
       {projectId && (
@@ -441,7 +316,7 @@ export function KanbanBoard({ projectId, projectMembers = [], canEdit = true }: 
           onOpenChange={setIsCreateModalOpen}
           projectId={projectId}
           defaultStatus={selectedDefaultStatus}
-          projectMembers={projectMembers}
+          projectMembers={projectMembers.filter(m => m.role !== "viewer")}
         />
       )}
 
@@ -459,4 +334,3 @@ export function KanbanBoard({ projectId, projectMembers = [], canEdit = true }: 
     </div>
   );
 }
-

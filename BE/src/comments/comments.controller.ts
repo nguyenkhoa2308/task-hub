@@ -6,8 +6,12 @@ import {
   Body,
   Param,
   Req,
+  Query,
   UseGuards,
+  Sse,
+  MessageEvent,
 } from '@nestjs/common';
+import { Observable } from 'rxjs';
 import { CommentsService } from './comments.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -23,8 +27,28 @@ export class CommentsController {
   }
 
   @Get('task/:taskId')
-  getByTask(@Param('taskId') taskId: string) {
-    return this.commentsService.getCommentsByTask(taskId);
+  getByTask(
+    @Param('taskId') taskId: string,
+    @Req() req: any,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.commentsService.getCommentsByTask(
+      taskId,
+      req.user.userId,
+      page ? Number(page) : 1,
+      limit ? Number(limit) : 20,
+    );
+  }
+
+  @Get('task/:taskId/mention-candidates')
+  getMentionCandidates(@Param('taskId') taskId: string, @Req() req: any) {
+    return this.commentsService.getMentionCandidates(taskId, req.user.userId);
+  }
+
+  @Sse('task/:taskId/sse')
+  stream(@Param('taskId') taskId: string, @Req() req: any): Promise<Observable<MessageEvent>> {
+    return this.commentsService.getCommentStream(taskId, req.user.userId);
   }
 
   @Delete(':id')

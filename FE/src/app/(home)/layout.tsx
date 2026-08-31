@@ -24,6 +24,7 @@ export default function DashboardLayout({
 
   const { isLoading, isAuthenticated } = useAppSelector((state) => state.auth);
   const [isCreateWorkSpace, setIsCreateWorkSpace] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [currentWorkSpace, setCurrentWorkSpace] = useState<WorkSpace | null>(null);
 
   useEffect(() => {
@@ -42,6 +43,10 @@ export default function DashboardLayout({
       } else {
         setCurrentWorkSpace({ _id: "all", name: "Tất cả Workspace", color: "#3b82f6" } as any);
       }
+    } else if (pathname === "/members") {
+      const wsId = searchParams.get("workspaceId");
+      const found = wsId ? workspaces.find((w: any) => w._id === wsId) : undefined;
+      setCurrentWorkSpace(found || null);
     } else if (pathname.startsWith("/workspaces/")) {
       const parts = pathname.split("/");
       const wsId = parts[2];
@@ -51,6 +56,10 @@ export default function DashboardLayout({
       }
     }
   }, [pathname, searchParams, workspaces]);
+
+  useEffect(() => {
+    setIsMobileSidebarOpen(false);
+  }, [pathname, searchParams]);
 
   if (isLoading || !isAuthenticated) {
     return <Loading text="Đang tải..." />;
@@ -64,6 +73,12 @@ export default function DashboardLayout({
       } else {
         router.push(`/dashboard?workspaceId=${workspace._id}`);
       }
+    } else if (pathname === "/members") {
+      if (workspace._id && workspace._id !== "all") {
+        router.push(`/members?workspaceId=${workspace._id}`);
+      } else {
+        router.push("/members");
+      }
     } else {
       if (workspace._id && workspace._id !== "all") {
         router.push(`/workspaces/${workspace._id}`);
@@ -74,20 +89,25 @@ export default function DashboardLayout({
   };
 
   return (
-    <div className="flex h-screen w-full">
+    <div className="flex h-screen w-full overflow-hidden">
       {/* SidebarComponent */}
-      <DashboardSidebar currentWorkspace={currentWorkSpace} />
+      <DashboardSidebar
+        currentWorkspace={currentWorkSpace}
+        isMobileOpen={isMobileSidebarOpen}
+        onMobileClose={() => setIsMobileSidebarOpen(false)}
+      />
 
-      <div className="flex flex-1 flex-col h-full">
+      <div className="flex flex-1 flex-col h-full min-w-0">
         {/* Header */}
         <DashboardHeader
+          onMenuClick={() => setIsMobileSidebarOpen(true)}
           onWorkspaceSelected={handleWorkspaceSelected}
           selectedWorkspace={currentWorkSpace}
           onCreateWorkspace={() => setIsCreateWorkSpace(true)}
         />
 
-        <main className="flex-1 overflow-y-auto h-full w-full">
-          <div className="px-2 sm:px-6 lg:px-8 py-0 md:py-8 w-full h-full">
+        <main className="scrollbar-stable flex-1 overflow-y-auto overflow-x-hidden h-full w-full">
+          <div className="h-full min-w-0 px-2 pt-4 pb-0 sm:px-6 md:py-8 lg:px-8">
             {children}
           </div>
         </main>

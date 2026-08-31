@@ -29,6 +29,33 @@ export const useGetProjectById = (projectId: string) => {
     });
 };
 
+export interface PaginatedResponse<T> {
+    data: T[];
+    pagination: { page: number; limit: number; total: number; totalPages: number };
+}
+
+export const useGetArchivedProjects = (params?: { page?: number; limit?: number }) => {
+    return useQuery({
+        queryKey: ["archived-projects", params],
+        queryFn: async () => getData<PaginatedResponse<any>>("/projects/archived/all", { params }),
+        placeholderData: (previous) => previous,
+    });
+};
+
+export const useGetDeletedProjects = (params?: { page?: number; limit?: number }) => {
+    return useQuery({
+        queryKey: ["trash-projects", params],
+        queryFn: async () => getData<PaginatedResponse<any>>("/projects/trash/all", { params }),
+        placeholderData: (previous) => previous,
+    });
+};
+
+export const useRestoreProject = () => {
+    return useMutation({
+        mutationFn: async (id: string) => patchData(`/projects/${id}/restore`, {}),
+    });
+};
+
 export const useUpdateProject = () => {
     return useMutation({
         mutationFn: async ({ id, data }: { id: string; data: any }) =>

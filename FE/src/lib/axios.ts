@@ -85,9 +85,16 @@ const patchData = async <T>(url: string, data?: unknown): Promise<T> => {
   const response = await api.patch(url, data);
   return response.data;
 };
-const deleteData = async <T>(url: string): Promise<T> => {
-  const response = await api.delete(url);
+const deleteData = async <T>(url: string, data?: unknown): Promise<T> => {
+  const response = await api.delete(url, data === undefined ? undefined : { data });
   return response.data;
 };
 
-export { postData, getData, updateData, patchData, deleteData };
+const uploadData = async <T>(url: string, formData: FormData): Promise<T> => {
+  const response = await api.post(url, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data;
+};
+
+export { postData, getData, updateData, patchData, deleteData, uploadData };

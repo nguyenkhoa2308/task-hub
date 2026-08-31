@@ -13,6 +13,8 @@ export type ActivityLogAction =
   | 'created_workspace'
   | 'updated_workspace'
   | 'added_comment'
+  | 'replied_comment'
+  | 'deleted_comment'
   | 'added_member'
   | 'removed_member'
   | 'joined_workspace'
@@ -40,6 +42,8 @@ export class Activity extends Document {
       'created_workspace',
       'updated_workspace',
       'added_comment',
+      'replied_comment',
+      'deleted_comment',
       'added_member',
       'removed_member',
       'joined_workspace',
@@ -63,3 +67,5 @@ export class Activity extends Document {
 }
 
 export const ActivitySchema = SchemaFactory.createForClass(Activity);
+
+ActivitySchema.index({ resourceType: 1, resourceId: 1, createdAt: -1 });

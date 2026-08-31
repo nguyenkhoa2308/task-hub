@@ -4,7 +4,6 @@ import {
   ArcjetGuard, ArcjetModule,
   detectBot,
   shield,
-  tokenBucket,
 } from '@arcjet/nest';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AppController } from './app.controller';
@@ -19,13 +18,23 @@ import { CommentsModule } from './comments/comments.module';
 import { ActivitiesModule } from './activities/activities.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { MembersModule } from './members/members.module';
+import { CloudinaryModule } from './cloudinary/cloudinary.module';
+import { ScheduleModule } from '@nestjs/schedule';
+import { CleanupModule } from './cleanup/cleanup.module';
+import { validateEnvironment } from './config/env.validation';
+import { ReportsModule } from './reports/reports.module';
+import { SearchModule } from './search/search.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      cache: true,
+      validate: validateEnvironment,
+    }),
     ArcjetModule.forRoot({
       isGlobal: true,
-      key: process.env.ARCJET_KEY || "ajkey_yourkey",
+      key: process.env.ARCJET_KEY!,
       rules: [
         // Shield protects your app from common attacks e.g. SQL injection
         shield({ mode: "LIVE" }),
@@ -39,7 +48,7 @@ import { MembersModule } from './members/members.module';
       ]
     }),
     MongooseModule.forRoot(
-      process.env.MONGODB_URI || 'mongodb://localhost:27017/your-db',
+      process.env.MONGODB_URI!,
     ),
     AuthModule,
     UsersModule,
@@ -50,6 +59,11 @@ import { MembersModule } from './members/members.module';
     ActivitiesModule,
     NotificationsModule,
     MembersModule,
+    CloudinaryModule,
+    ScheduleModule.forRoot(),
+    CleanupModule,
+    ReportsModule,
+    SearchModule,
   ],
   controllers: [AppController],
   providers: [AppService, {

@@ -1,7 +1,8 @@
-import { Controller, Post, Get, Body, Param, Req, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Delete, Body, Param, Req, UseGuards } from '@nestjs/common';
 import { MembersService } from './members.service';
 import { InviteMemberDto } from './dto/invite-member.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
 
 @Controller('members')
 export class MembersController {
@@ -52,5 +53,42 @@ export class MembersController {
   ) {
     const rejecterId = req.user.userId;
     return this.membersService.rejectMember(workspaceId, rejecterId, userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('workspace/:id/:userId/role')
+  updateMemberRole(
+    @Param('id') workspaceId: string,
+    @Param('userId') userId: string,
+    @Body() dto: UpdateMemberRoleDto,
+    @Req() req: any,
+  ) {
+    return this.membersService.updateMemberRole(workspaceId, req.user.userId, userId, dto.role);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('workspace/:id/:userId')
+  removeMember(
+    @Param('id') workspaceId: string,
+    @Param('userId') userId: string,
+    @Req() req: any,
+  ) {
+    return this.membersService.removeMember(workspaceId, req.user.userId, userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('workspace/:id/leave')
+  leaveWorkspace(@Param('id') workspaceId: string, @Req() req: any) {
+    return this.membersService.leaveWorkspace(workspaceId, req.user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('workspace/:id/transfer-ownership')
+  transferOwnership(
+    @Param('id') workspaceId: string,
+    @Body('userId') userId: string,
+    @Req() req: any,
+  ) {
+    return this.membersService.transferOwnership(workspaceId, req.user.userId, userId);
   }
 }

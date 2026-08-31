@@ -17,6 +17,9 @@ export class User {
   @Prop()
   profileImage?: string;
 
+  @Prop()
+  profileImagePublicId?: string;
+
   @Prop({ default: false })
   isEmailVerified?: boolean;
 

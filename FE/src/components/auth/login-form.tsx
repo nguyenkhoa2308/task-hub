@@ -74,8 +74,10 @@ export default function LoginForm() {
                   {...field}
                   id={field.name}
                   type="email"
+                  autoComplete="email"
                   placeholder="example@email.com"
                   aria-invalid={fieldState.invalid}
+                  className="h-11 text-base sm:text-sm"
                 />
                 {fieldState.invalid && (
                   <FieldError errors={[fieldState.error]} />
@@ -106,8 +108,10 @@ export default function LoginForm() {
                     {...field}
                     id={field.name}
                     type={showPassword ? "text" : "password"}
+                    autoComplete="current-password"
                     placeholder="••••••••"
                     aria-invalid={fieldState.invalid}
+                    className="h-11 pr-10 text-base sm:text-sm"
                   />
                   <button
                     type="button"
@@ -128,8 +132,8 @@ export default function LoginForm() {
           )}
         />
 
-        <Button type="submit" className="w-full h-12">
-          Đăng nhập
+        <Button type="submit" className="h-12 w-full" disabled={isPending}>
+          {isPending ? "Đang đăng nhập..." : "Đăng nhập"}
         </Button>
       </FieldGroup>
     </form>

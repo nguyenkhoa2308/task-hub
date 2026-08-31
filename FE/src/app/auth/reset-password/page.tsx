@@ -109,17 +109,17 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen w-full flex flex-col bg-gray-50 selection:bg-blue-800/10">
+    <div className="min-h-dvh w-full flex flex-col bg-gray-50 selection:bg-blue-800/10">
       {/* Main Content */}
-      <main className="flex-grow flex items-center justify-center px-4 py-8">
-        <Card className="w-full max-w-md bg-white rounded-2xl shadow-[0_20px_25px_-5px_rgba(0,0,0,0.05),0_10px_10px_-5px_rgba(0,0,0,0.02)] border border-gray-300/20">
-          <CardHeader className="text-center">
+      <main className="flex flex-1 items-start justify-center sm:items-center sm:px-4 sm:py-8">
+        <Card className="min-h-dvh w-full max-w-md rounded-none border-0 bg-white py-7 shadow-none sm:min-h-0 sm:rounded-2xl sm:border sm:border-gray-300/20 sm:shadow-[0_20px_25px_-5px_rgba(0,0,0,0.05),0_10px_10px_-5px_rgba(0,0,0,0.02)]">
+          <CardHeader className="px-5 text-center sm:px-6">
             <div className="flex justify-center mb-8">
               <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 rotate-3 hover:rotate-0 transition-transform duration-500">
                 <Lock className="w-7 h-7" />
               </div>
             </div>
-            <CardTitle className="text-2xl text-gray-900 mb-4 tracking-tight font-bold">
+            <CardTitle className="mb-2 text-xl font-bold tracking-tight text-gray-900 sm:mb-4 sm:text-2xl">
               Đặt lại mật khẩu
             </CardTitle>
             <CardDescription className="text-sm text-gray-500 leading-relaxed">
@@ -128,7 +128,7 @@ export default function ResetPasswordPage() {
               của bạn.
             </CardDescription>
           </CardHeader>
-          <CardContent className="py-4">
+          <CardContent className="px-5 py-4 sm:px-6">
             <form
               className="space-y-6"
               onSubmit={form.handleSubmit(handleOnSubmit)}
@@ -141,12 +141,12 @@ export default function ResetPasswordPage() {
                 </label>
                 <div className="flex justify-center w-full">
                   <InputOTP maxLength={6} value={otp} onChange={setOtp}>
-                    <InputOTPGroup className="flex justify-between gap-2 sm:gap-3 w-full">
+                    <InputOTPGroup className="flex w-full justify-between gap-1.5 sm:gap-3">
                       {[0, 1, 2, 3, 4, 5].map((index) => (
                         <InputOTPSlot
                           key={index}
                           index={index}
-                          className="!w-11 !h-14 sm:!w-[52px] sm:!h-14 text-center text-xl font-semibold !border !border-gray-300/40 !rounded-xl bg-blue-50/30 text-gray-900 transition-all focus-visible:!ring-1 focus-visible:!ring-blue-600 focus-visible:!border-blue-600"
+                          className="!h-12 !w-auto min-w-0 flex-1 !rounded-lg !border !border-gray-300/40 bg-blue-50/30 text-center text-lg font-semibold text-gray-900 transition-all focus-visible:!border-blue-600 focus-visible:!ring-1 focus-visible:!ring-blue-600 sm:!h-14 sm:!w-[52px] sm:flex-none sm:rounded-xl sm:text-xl"
                         />
                       ))}
                     </InputOTPGroup>
@@ -170,8 +170,10 @@ export default function ResetPasswordPage() {
                             {...field}
                             id={field.name}
                             type={showPassword ? "text" : "password"}
+                            autoComplete="new-password"
                             placeholder="••••••••"
                             aria-invalid={fieldState.invalid}
+                            className="h-11 pr-10 text-base sm:text-sm"
                           />
                           <button
                             type="button"
@@ -209,8 +211,10 @@ export default function ResetPasswordPage() {
                             {...field}
                             id={field.name}
                             type={showConfirmPassword ? "text" : "password"}
+                            autoComplete="new-password"
                             placeholder="••••••••"
                             aria-invalid={fieldState.invalid}
+                            className="h-11 pr-10 text-base sm:text-sm"
                           />
                           <button
                             type="button"
