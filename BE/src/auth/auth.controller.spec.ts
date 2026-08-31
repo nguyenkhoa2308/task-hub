@@ -58,4 +58,41 @@ describe('AuthController', () => {
     expect(authService.signIn).toHaveBeenCalled();
     expect(response.cookie).toHaveBeenCalledTimes(2);
   });
+
+  it('uses cross-site secure cookies in production', async () => {
+    const previousNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    arcjet.protect.mockResolvedValue({ isDenied: () => false });
+    authService.signIn.mockResolvedValue({
+      access_token: 'access',
+      refresh_token: 'refresh',
+      user: { _id: 'user-1' },
+    });
+    const response = { cookie: jest.fn() };
+
+    try {
+      await controller.signIn(
+        {} as any,
+        { email: 'user@example.com', password: 'password123' },
+        response as any,
+      );
+
+      expect(response.cookie).toHaveBeenCalledWith(
+        'access_token',
+        'access',
+        expect.objectContaining({ secure: true, sameSite: 'none' }),
+      );
+      expect(response.cookie).toHaveBeenCalledWith(
+        'refresh_token',
+        'refresh',
+        expect.objectContaining({ secure: true, sameSite: 'none' }),
+      );
+    } finally {
+      if (previousNodeEnv === undefined) {
+        delete process.env.NODE_ENV;
+      } else {
+        process.env.NODE_ENV = previousNodeEnv;
+      }
+    }
+  });
 });

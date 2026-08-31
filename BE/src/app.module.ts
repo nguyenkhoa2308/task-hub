@@ -43,6 +43,7 @@ import { SearchModule } from './search/search.module';
           mode: "LIVE", // Blocks requests. Use "DRY_RUN" to log only
           allow: [
             "CATEGORY:SEARCH_ENGINE", // Google, Bing, etc
+            "CATEGORY:MONITOR", // UptimeRobot và các dịch vụ giám sát uptime
           ],
         }),
       ]

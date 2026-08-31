@@ -71,14 +71,14 @@ export class AuthController {
     res.cookie('access_token', access_token, {
       httpOnly: true,
       secure: isProd,
-      sameSite: 'lax',
+      sameSite: isProd ? 'none' : 'lax',
       maxAge: 15 * 60 * 1000, // 15 phút (khớp với JWT expiresIn)
     });
 
     res.cookie('refresh_token', refresh_token, {
       httpOnly: true,
       secure: isProd,
-      sameSite: 'lax',
+      sameSite: isProd ? 'none' : 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 ngày
       path: '/',
     });
@@ -102,14 +102,14 @@ export class AuthController {
     res.cookie('access_token', tokens.access_token, {
       httpOnly: true,
       secure: isProd,
-      sameSite: 'lax',
+      sameSite: isProd ? 'none' : 'lax',
       maxAge: 15 * 60 * 1000,
     });
 
     res.cookie('refresh_token', tokens.refresh_token, {
       httpOnly: true,
       secure: isProd,
-      sameSite: 'lax',
+      sameSite: isProd ? 'none' : 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000,
       path: '/',
     });
@@ -122,11 +122,17 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
+    const isProd = process.env.NODE_ENV === 'production';
+    const cookieOptions = {
+      secure: isProd,
+      sameSite: isProd ? 'none' as const : 'lax' as const,
+    };
+
     try {
       await this.authService.logout(req.cookies?.refresh_token);
     } finally {
-      res.clearCookie('access_token');
-      res.clearCookie('refresh_token', { path: '/' });
+      res.clearCookie('access_token', cookieOptions);
+      res.clearCookie('refresh_token', { ...cookieOptions, path: '/' });
     }
     return { message: 'Đăng xuất thành công' };
   }
