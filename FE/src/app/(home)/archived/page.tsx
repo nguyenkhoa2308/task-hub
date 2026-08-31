@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Archive, Building2, CalendarClock, ChevronLeft, ChevronRight, Eye, FolderKanban, ListTodo, RotateCcw } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -34,16 +34,9 @@ export default function ArchivedPage() {
   const pagination = data?.pagination;
   const archivedProjects = archivedProjectResponse?.data || [];
   const projectPagination = archivedProjectResponse?.pagination;
-  const [showSkeleton, setShowSkeleton] = useState(true);
-
-  useEffect(() => {
-    if (isLoading || isFetching || isLoadingProjects) {
-      setShowSkeleton(true);
-      return;
-    }
-    const timeout = window.setTimeout(() => setShowSkeleton(false), 450);
-    return () => window.clearTimeout(timeout);
-  }, [isFetching, isLoading, isLoadingProjects]);
+  const showSkeleton = activeTab === "tasks"
+    ? isLoading || isFetching
+    : isLoadingProjects || isFetchingProjects;
 
   const unarchive = (taskId: string) => {
     updateTask({ id: taskId, data: { isArchived: false } }, {

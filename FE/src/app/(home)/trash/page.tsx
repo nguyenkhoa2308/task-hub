@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Building2, CalendarClock, ChevronLeft, ChevronRight, FolderKanban, ListTodo, RotateCcw, Trash2 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -37,7 +37,11 @@ export default function TrashPage() {
   const deletedWorkspaces = deletedWorkspaceResponse?.data || [];
   const workspacePagination = deletedWorkspaceResponse?.pagination;
   const skeletonCount = 12;
-  const [showSkeleton, setShowSkeleton] = useState(true);
+  const showSkeleton = activeTab === "tasks"
+    ? isLoading || isFetching
+    : activeTab === "projects"
+      ? isLoadingProjects || isFetchingProjects
+      : isLoadingWorkspaces || isFetchingWorkspaces;
   const currentItems = activeTab === "tasks" ? tasks : activeTab === "projects" ? deletedProjects : deletedWorkspaces;
   const selectedIds = selected[activeTab];
   const toggleSelected = (id: string) => setSelected((current) => ({
@@ -57,16 +61,6 @@ export default function TrashPage() {
       onError: (error: Error) => toast.error(error.message),
     });
   };
-
-  useEffect(() => {
-    if (isLoading || isFetching || isLoadingProjects || isLoadingWorkspaces) {
-      setShowSkeleton(true);
-      return;
-    }
-
-    const timeout = window.setTimeout(() => setShowSkeleton(false), 450);
-    return () => window.clearTimeout(timeout);
-  }, [isFetching, isLoading, isLoadingProjects, isLoadingWorkspaces]);
 
   const restore = (taskId: string) => {
     restoreTask(taskId, {
