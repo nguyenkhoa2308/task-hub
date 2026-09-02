@@ -1094,21 +1094,24 @@ export function TaskDetailModal({
                 </div>
               )}
 
+              {/* Input for adding new subtask */}
+              {canEdit && (
+                <div className="flex gap-2">
+                  <Input
+                    value={newSubtask}
+                    onChange={(e) => setNewSubtask(e.target.value)}
+                    placeholder="Thêm công việc phụ..."
+                    className="h-9 text-xs rounded-xl"
+                    onKeyDown={(e) => e.key === "Enter" && handleAddSubtask()}
+                  />
+                  <Button size="sm" onClick={handleAddSubtask} disabled={!newSubtask.trim()} className="h-9 px-4 text-xs font-bold rounded-xl cursor-pointer">
+                    Thêm
+                  </Button>
+                </div>
+              )}
+
               {subtasks.length > 0 && (
                 <div className="space-y-2">
-                  {canEdit && <div className="flex gap-2">
-                    <Input
-                      value={newSubtask}
-                      onChange={(e) => setNewSubtask(e.target.value)}
-                      placeholder="Thêm công việc phụ..."
-                      className="h-9 text-xs rounded-xl"
-                      onKeyDown={(e) => e.key === "Enter" && handleAddSubtask()}
-                    />
-                    <Button size="sm" onClick={handleAddSubtask} disabled={!newSubtask.trim()} className="h-9 px-4 text-xs font-bold rounded-xl cursor-pointer">
-                      Thêm
-                    </Button>
-                  </div>}
-
                   {subtasks.map((st) => (
                     <div
                       key={st.id}

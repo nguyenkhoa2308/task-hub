@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Check, ChevronDown } from "lucide-react";
+import { Popover as PopoverPrimitive } from "radix-ui";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface AssigneeSelectProps {
@@ -21,18 +22,6 @@ export function AssigneeSelect({
 }: AssigneeSelectProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-        setSearch("");
-      }
-    };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
 
   const toggle = (userId: string) => {
     if (value.includes(userId)) {
@@ -55,45 +44,57 @@ export function AssigneeSelect({
   });
 
   return (
-    <div ref={ref} className="relative">
+    <PopoverPrimitive.Root
+      open={open}
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen);
+        if (!nextOpen) setSearch("");
+      }}
+    >
       {/* Trigger */}
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={() => !disabled && setOpen((p) => !p)}
-        className={`w-full min-h-14 flex items-center justify-between gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 ${disabled ? "opacity-60 cursor-not-allowed bg-slate-50" : "hover:border-slate-300 cursor-pointer"}`}
-      >
-        {selectedMembers.length === 0 ? (
-          <span className="text-slate-400 font-normal">{placeholder}</span>
-        ) : (
-          <div className="flex items-center gap-1.5 flex-wrap flex-1">
-            {selectedMembers.map((m) => {
-              const u = m.user || m;
-              return (
-                <div
-                  key={u._id || u}
-                  className="flex items-center gap-1 bg-blue-50 text-blue-700 border border-blue-100 rounded-lg px-2 py-1 text-[13px] font-bold"
-                >
-                  <Avatar className="size-6 shrink-0">
-                    <AvatarImage src={u.profileImage} />
-                    <AvatarFallback className="text-[10px] font-semibold">
-                      {u.name?.charAt(0)?.toUpperCase() || "?"}
-                    </AvatarFallback>
-                  </Avatar>
-                  {u.name || "Thành viên"}
-                </div>
-              );
-            })}
-          </div>
-        )}
-        <ChevronDown
-          className={`size-4 text-slate-400 transition-transform shrink-0 ml-auto ${open ? "rotate-180" : ""}`}
-        />
-      </button>
+      <PopoverPrimitive.Trigger asChild>
+        <button
+          type="button"
+          disabled={disabled}
+          className={`w-full min-h-14 flex items-center justify-between gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 ${disabled ? "opacity-60 cursor-not-allowed bg-slate-50" : "hover:border-slate-300 cursor-pointer"}`}
+        >
+          {selectedMembers.length === 0 ? (
+            <span className="text-slate-400 font-normal">{placeholder}</span>
+          ) : (
+            <div className="flex items-center gap-1.5 flex-wrap flex-1">
+              {selectedMembers.map((m) => {
+                const u = m.user || m;
+                return (
+                  <div
+                    key={u._id || u}
+                    className="flex items-center gap-1 bg-blue-50 text-blue-700 border border-blue-100 rounded-lg px-2 py-1 text-[13px] font-bold"
+                  >
+                    <Avatar className="size-6 shrink-0">
+                      <AvatarImage src={u.profileImage} />
+                      <AvatarFallback className="text-[10px] font-semibold">
+                        {u.name?.charAt(0)?.toUpperCase() || "?"}
+                      </AvatarFallback>
+                    </Avatar>
+                    {u.name || "Thành viên"}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <ChevronDown
+            className={`size-4 text-slate-400 transition-transform shrink-0 ml-auto ${open ? "rotate-180" : ""}`}
+          />
+        </button>
+      </PopoverPrimitive.Trigger>
 
-      {/* Dropdown */}
-      {open && (
-        <div className="absolute z-50 top-[calc(100%+4px)] left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden">
+      {/* Dropdown in Portal */}
+      <PopoverPrimitive.Portal>
+        <PopoverPrimitive.Content
+          align="start"
+          sideOffset={4}
+          style={{ width: "var(--radix-popover-trigger-width)" }}
+          className="z-[100] bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden p-0 duration-100 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95"
+        >
           {/* Search */}
           <div className="p-2 border-b border-slate-100">
             <input
@@ -149,8 +150,9 @@ export function AssigneeSelect({
               })
             )}
           </div>
-        </div>
-      )}
-    </div>
+        </PopoverPrimitive.Content>
+      </PopoverPrimitive.Portal>
+    </PopoverPrimitive.Root>
   );
 }
+
