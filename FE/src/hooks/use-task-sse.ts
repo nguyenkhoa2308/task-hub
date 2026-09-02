@@ -71,7 +71,7 @@ export const useSSETasks = (projectId?: string) => {
             if (!projectId) {
               queryClient.invalidateQueries({ queryKey: ["my-tasks"] });
             }
-            queryClient.invalidateQueries({ queryKey: ["projects"] });
+            queryClient.invalidateQueries({ queryKey: ["projects"], refetchType: "none" });
             if (data.projectId) {
               queryClient.invalidateQueries({ queryKey: ["project", data.projectId] });
             }

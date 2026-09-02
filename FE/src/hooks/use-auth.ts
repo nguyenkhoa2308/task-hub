@@ -2,6 +2,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { postData, getData, patchData, uploadData } from "@/lib/axios";
 import type { SignUpFormData } from "@/components/auth/register-form";
 import { SigninFormData } from "@/components/auth/login-form";
+import type { User } from "@/types";
+
+const AUTH_ME_QUERY_KEY = ["auth", "me"] as const;
+
+interface AuthMeResponse {
+    user: User;
+}
 
 
 export const useSignUpMutation = () => {
@@ -11,8 +18,10 @@ export const useSignUpMutation = () => {
 };
 
 export const useSignInMutation = () => {
+    const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: (data: SigninFormData) => postData("/auth/login", data),
+        mutationFn: (data: SigninFormData) => postData<AuthMeResponse>("/auth/login", data),
+        onSuccess: (data) => queryClient.setQueryData(AUTH_ME_QUERY_KEY, data),
     })
 }
 
@@ -43,15 +52,27 @@ export const useResetPasswordMutation = () => {
 
 export const useGetMeQuery = () => {
     return useQuery({
-        queryKey: ["auth", "me"],
-        queryFn: () => getData("/auth/me"),
+        queryKey: AUTH_ME_QUERY_KEY,
+        queryFn: () => getData<AuthMeResponse>("/auth/me"),
+        staleTime: Infinity,
+        gcTime: Infinity,
+        refetchOnMount: false,
+        refetchOnReconnect: false,
+        refetchOnWindowFocus: false,
         retry: false,
     });
 };
 
 export const useLogoutMutation = () => {
+    const queryClient = useQueryClient();
     return useMutation({
         mutationFn: () => postData("/auth/logout", {}),
+        onSuccess: () => {
+            queryClient.removeQueries({
+                predicate: (query) => query.queryKey[0] !== "auth",
+            });
+            queryClient.setQueryData(AUTH_ME_QUERY_KEY, null);
+        },
     });
 };
 
@@ -61,7 +82,7 @@ export const useUpdateProfileMutation = () => {
         mutationFn: (data: { name?: string; profileImage?: string }) =>
             patchData("/auth/profile", data),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
+            queryClient.invalidateQueries({ queryKey: AUTH_ME_QUERY_KEY });
         },
     });
 };
@@ -81,6 +102,6 @@ export const useUploadAvatarMutation = () => {
             formData.append("file", file);
             return uploadData<any>("/auth/profile/avatar", formData);
         },
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ["auth", "me"] }),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: AUTH_ME_QUERY_KEY }),
     });
 };

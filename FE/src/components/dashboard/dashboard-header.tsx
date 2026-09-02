@@ -99,14 +99,18 @@ export default function DashboardHeader({
   const { data: workspaces = [] } = useGetWorkspaces();
 
   // Notifications API & SSE Stream
-  useSSENotifications();
+  const isNotificationRealtimeConnected = useSSENotifications();
+  const isNotificationPanelOpen = isNotificationOpen || isDesktopNotificationOpen;
   const {
     data: notificationPages,
     isLoading: isLoadingNotis,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = useGetNotifications();
+  } = useGetNotifications({
+    enabled: isNotificationPanelOpen,
+    realtimeConnected: isNotificationRealtimeConnected,
+  });
   const notifications = Array.from(
     new Map(
       (Array.isArray(notificationPages?.pages)
@@ -115,11 +119,14 @@ export default function DashboardHeader({
         .map((notification) => [notification._id, notification]),
     ).values(),
   ) as NotificationItem[];
-  const { data: unreadData } = useGetUnreadNotificationCount();
+  const { data: unreadData } = useGetUnreadNotificationCount({
+    realtimeConnected: isNotificationRealtimeConnected,
+  });
   const { mutate: markAsRead } = useMarkNotificationAsRead();
   const { mutate: markAllAsRead } = useMarkAllNotificationsAsRead();
 
-  const unreadCount = unreadData?.unreadCount || 0;
+  const visibleUnreadCount = notifications.filter((notification) => !notification.isRead).length;
+  const unreadCount = Math.max(unreadData?.unreadCount || 0, visibleUnreadCount);
 
   const handleLogout = () => {
     logoutAPI(undefined, {

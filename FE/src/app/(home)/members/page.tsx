@@ -55,7 +55,6 @@ export default function MembersPage() {
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [isPendingOpen, setIsPendingOpen] = useState(false);
   const { data: workspace, isLoading, isError, refetch } = useGetWorkspaceById(workspaceId);
-  const { data: pendingMembers = [] } = useGetPendingMembers(workspaceId);
 
   const members = useMemo(() => {
     const active = (workspace?.members || []).filter((member: any) => member.status !== "pending");
@@ -72,6 +71,7 @@ export default function MembersPage() {
   ) as any;
   const ownerId = typeof workspace?.owner === "string" ? workspace.owner : workspace?.owner?._id;
   const canManage = ownerId === currentUser?._id || ["owner", "admin"].includes(currentMembership?.role);
+  const { data: pendingMembers = [] } = useGetPendingMembers(workspaceId, canManage);
   if (!workspaceId) {
     return (
       <div className="w-full space-y-6 pb-12">

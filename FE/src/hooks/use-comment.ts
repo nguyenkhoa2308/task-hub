@@ -92,9 +92,11 @@ export const useDeleteComment = () => {
   return useMutation({
     mutationFn: async ({ commentId }: { commentId: string; taskId: string }) =>
       deleteData(`/comments/${commentId}`),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["comments", variables.taskId] });
-      queryClient.invalidateQueries({ queryKey: ["task-activities", variables.taskId] });
+    onSuccess: async (_, variables) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["comments", variables.taskId] }),
+        queryClient.invalidateQueries({ queryKey: ["task-activities", variables.taskId] }),
+      ]);
     },
   });
 };

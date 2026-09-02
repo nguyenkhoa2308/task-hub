@@ -1,7 +1,21 @@
-import { Injectable, MessageEvent } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  MessageEvent,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Subject, Observable, filter, map } from 'rxjs';
+import {
+  Subject,
+  Observable,
+  filter,
+  interval,
+  map,
+  merge,
+  startWith,
+} from 'rxjs';
 import { Notification } from './schemas/notification.schema';
 
 export interface CreateNotificationDto {
@@ -14,14 +28,74 @@ export interface CreateNotificationDto {
   dedupeKey?: string;
 }
 
+interface NotificationRealtimeEvent {
+  recipientId: string;
+  data: {
+    notification: Record<string, unknown>;
+    unreadCount: number;
+  };
+}
+
+const hasToHexString = (
+  value: unknown,
+): value is { toHexString: () => string } =>
+  typeof value === 'object' &&
+  value !== null &&
+  'toHexString' in value &&
+  typeof value.toHexString === 'function';
+
+const getInsertedDocumentId = (change: unknown): string | null => {
+  if (typeof change !== 'object' || change === null) return null;
+  if (!('operationType' in change) || change.operationType !== 'insert') {
+    return null;
+  }
+  if (!('documentKey' in change)) return null;
+  const documentKey = change.documentKey;
+  if (typeof documentKey !== 'object' || documentKey === null) return null;
+  if (!('_id' in documentKey) || documentKey._id == null) return null;
+  if (typeof documentKey._id === 'string') return documentKey._id;
+  return hasToHexString(documentKey._id) ? documentKey._id.toHexString() : null;
+};
+
 @Injectable()
-export class NotificationsService {
-  private notificationSubject = new Subject<{ recipientId: string; data: any }>();
+export class NotificationsService implements OnModuleInit, OnModuleDestroy {
+  private static readonly logger = new Logger(NotificationsService.name);
+  private static readonly notificationSubject =
+    new Subject<NotificationRealtimeEvent>();
+  private static readonly recentlyPublishedIds = new Set<string>();
+  private static changeStream: ReturnType<Model<Notification>['watch']> | null =
+    null;
 
   constructor(
     @InjectModel(Notification.name)
     private readonly notificationModel: Model<Notification>,
   ) {}
+
+  onModuleInit() {
+    if (NotificationsService.changeStream) return;
+
+    const changeStream = this.notificationModel.watch([
+      { $match: { operationType: 'insert' } },
+    ]);
+    NotificationsService.changeStream = changeStream;
+    changeStream.on('change', (change: unknown) => {
+      const notificationId = getInsertedDocumentId(change);
+      if (notificationId) {
+        void this.publishStoredNotification(notificationId);
+      }
+    });
+    changeStream.on('error', (error) => {
+      NotificationsService.logger.error(
+        `Notification change stream stopped: ${error.message}`,
+      );
+      NotificationsService.changeStream = null;
+    });
+  }
+
+  async onModuleDestroy() {
+    await NotificationsService.changeStream?.close();
+    NotificationsService.changeStream = null;
+  }
 
   async createNotification(dto: CreateNotificationDto) {
     // Đừng tự gửi thông báo cho chính mình
@@ -30,10 +104,14 @@ export class NotificationsService {
     let noti: Notification;
     try {
       noti = await this.notificationModel.create(dto);
-    } catch (error: any) {
+    } catch (error: unknown) {
       // A unique dedupe key makes scheduled notifications safe across restarts
       // and across multiple backend instances.
-      if (error?.code === 11000 && dto.dedupeKey) return null;
+      const errorCode =
+        typeof error === 'object' && error !== null && 'code' in error
+          ? error.code
+          : undefined;
+      if (errorCode === 11000 && dto.dedupeKey) return null;
       throw error;
     }
     const populated = await this.notificationModel
@@ -42,13 +120,46 @@ export class NotificationsService {
 
     // Bắn sự kiện SSE đẩy xuống client
     if (populated) {
-      this.notificationSubject.next({
-        recipientId: dto.recipient,
-        data: populated,
+      const unreadCount = await this.notificationModel.countDocuments({
+        recipient: dto.recipient,
+        isRead: false,
       });
+      this.publishRealtimeNotification(populated, unreadCount);
     }
 
     return populated;
+  }
+
+  private async publishStoredNotification(notificationId: string) {
+    const notification = await this.notificationModel
+      .findById(notificationId)
+      .populate('sender', 'name email profileImage');
+    if (!notification) return;
+    const unreadCount = await this.notificationModel.countDocuments({
+      recipient: notification.recipient,
+      isRead: false,
+    });
+    this.publishRealtimeNotification(notification, unreadCount);
+  }
+
+  private publishRealtimeNotification(
+    notification: Notification,
+    unreadCount: number,
+  ) {
+    const notificationId = notification._id.toString();
+    if (NotificationsService.recentlyPublishedIds.has(notificationId)) return;
+    NotificationsService.recentlyPublishedIds.add(notificationId);
+    setTimeout(() => {
+      NotificationsService.recentlyPublishedIds.delete(notificationId);
+    }, 30_000).unref();
+
+    NotificationsService.notificationSubject.next({
+      recipientId: notification.recipient.toString(),
+      data: {
+        notification: notification.toObject<Record<string, unknown>>(),
+        unreadCount,
+      },
+    });
   }
 
   async getUserNotifications(userId: string, page = 1, limit = 20) {
@@ -101,11 +212,26 @@ export class NotificationsService {
 
   // SSE Stream Observable dành cho từng user
   getSSENotificationStream(userId: string): Observable<MessageEvent> {
-    return this.notificationSubject.asObservable().pipe(
-      filter((event) => event.recipientId === userId),
-      map((event) => ({
-        data: JSON.stringify(event.data),
-      }) as MessageEvent),
+    const notifications = NotificationsService.notificationSubject
+      .asObservable()
+      .pipe(
+        filter((event) => event.recipientId === userId.toString()),
+        map((event) => ({ data: event.data }) satisfies MessageEvent),
+      );
+    const connection = interval(25_000).pipe(
+      map(
+        () =>
+          ({
+            type: 'heartbeat',
+            data: { timestamp: Date.now() },
+          }) satisfies MessageEvent,
+      ),
+      startWith({
+        type: 'connected',
+        data: { timestamp: Date.now() },
+      } satisfies MessageEvent),
     );
+
+    return merge(notifications, connection);
   }
 }

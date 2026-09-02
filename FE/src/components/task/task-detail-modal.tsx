@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { useSearchParams } from "next/navigation";
 import {
@@ -54,6 +54,117 @@ interface TaskDetailModalProps {
   canEdit?: boolean;
 }
 
+interface MentionCandidate {
+  _id?: string;
+  id?: string;
+  name: string;
+  email?: string;
+  profileImage?: string;
+  avatarUrl?: string;
+}
+
+interface MentionDropdownProps {
+  anchorRef: RefObject<HTMLDivElement | null>;
+  candidates: MentionCandidate[];
+  onSelect: (member: MentionCandidate) => void;
+}
+
+function MentionDropdown({ anchorRef, candidates, onSelect }: MentionDropdownProps) {
+  const [position, setPosition] = useState<{
+    top: number;
+    left: number;
+    width: number;
+    maxHeight: number;
+    openAbove: boolean;
+  } | null>(null);
+
+  useEffect(() => {
+    const anchor = anchorRef.current;
+    if (!anchor) return;
+
+    const updatePosition = () => {
+      const rect = anchor.getBoundingClientRect();
+      const viewportPadding = 12;
+      const gap = 8;
+      const preferredHeight = Math.min(320, 42 + candidates.length * 44);
+      const availableBelow = window.innerHeight - rect.bottom - viewportPadding - gap;
+      const availableAbove = rect.top - viewportPadding - gap;
+      const openAbove = availableBelow < preferredHeight && availableAbove > availableBelow;
+      const availableHeight = openAbove ? availableAbove : availableBelow;
+      const width = Math.min(288, window.innerWidth - viewportPadding * 2);
+      const left = Math.min(
+        Math.max(viewportPadding, rect.left),
+        window.innerWidth - width - viewportPadding,
+      );
+
+      setPosition({
+        top: openAbove ? rect.top - gap : rect.bottom + gap,
+        left,
+        width,
+        maxHeight: Math.max(120, Math.min(preferredHeight, availableHeight)),
+        openAbove,
+      });
+    };
+
+    updatePosition();
+    const resizeObserver = new ResizeObserver(updatePosition);
+    resizeObserver.observe(anchor);
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [anchorRef, candidates.length]);
+
+  if (!position) return null;
+
+  return createPortal(
+    <div
+      className="fixed z-[100] overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-xl"
+      style={{
+        top: position.top,
+        left: position.left,
+        width: position.width,
+        maxHeight: position.maxHeight,
+        transform: position.openAbove ? "translateY(-100%)" : undefined,
+      }}
+      onClick={(event) => event.stopPropagation()}
+    >
+      <p className="sticky top-0 bg-white px-2 py-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-400">
+        Nhắc đến thành viên
+      </p>
+      {candidates.map((member) => {
+        const id = member._id || member.id;
+        if (!id) return null;
+        return (
+          <button
+            key={id}
+            type="button"
+            className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left hover:bg-slate-50"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => onSelect(member)}
+          >
+            <Avatar className="size-7">
+              <AvatarImage src={member.profileImage || member.avatarUrl} alt={member.name} />
+              <AvatarFallback className="text-[10px] font-bold">
+                {member.name.charAt(0).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <span className="min-w-0">
+              <span className="block truncate text-xs font-semibold text-slate-800">{member.name}</span>
+              {member.email && <span className="block truncate text-[10px] text-slate-400">{member.email}</span>}
+            </span>
+          </button>
+        );
+      })}
+    </div>,
+    document.body,
+  );
+}
+
 export function TaskDetailModal({
   task,
   isOpen,
@@ -77,6 +188,7 @@ export function TaskDetailModal({
   const [rightTab, setRightTab] = useState<"comments" | "activity">("comments");
   const [mobileTab, setMobileTab] = useState<"details" | "comments" | "activity">("details");
   const [commentsPortalTarget, setCommentsPortalTarget] = useState<HTMLDivElement | null>(null);
+  const mentionAnchorRef = useRef<HTMLDivElement>(null);
   const [highlightedCommentId, setHighlightedCommentId] = useState<string | null>(null);
   const [visibleReplyCounts, setVisibleReplyCounts] = useState<Record<string, number>>({});
 
@@ -160,6 +272,10 @@ export function TaskDetailModal({
   const [newComment, setNewComment] = useState("");
   const [mentionedUsers, setMentionedUsers] = useState<Array<{ id: string; name: string }>>([]);
   const [replyingTo, setReplyingTo] = useState<{ id: string; name: string } | null>(null);
+  const deletingCommentIdsRef = useRef(new Set<string>());
+  const [deletingCommentIds, setDeletingCommentIds] = useState<Set<string>>(
+    () => new Set(),
+  );
   const { data: mentionableMembers = [] } = useGetMentionCandidates(taskId, isOpen);
   const {
     data: comments = [],
@@ -435,6 +551,29 @@ export function TaskDetailModal({
     );
   };
 
+  const handleDeleteComment = (
+    commentId: string,
+    errorMessage: string,
+  ) => {
+    if (deletingCommentIdsRef.current.has(commentId)) return;
+    deletingCommentIdsRef.current.add(commentId);
+    setDeletingCommentIds((current) => new Set(current).add(commentId));
+    deleteComment(
+      { commentId, taskId },
+      {
+        onError: () => toast.error(errorMessage),
+        onSettled: () => {
+          deletingCommentIdsRef.current.delete(commentId);
+          setDeletingCommentIds((current) => {
+            const next = new Set(current);
+            next.delete(commentId);
+            return next;
+          });
+        },
+      },
+    );
+  };
+
   const mentionMatch = newComment.match(/(?:^|\s)@([^@\s]*)$/);
   const mentionQuery = mentionMatch?.[1]?.toLocaleLowerCase("vi") || "";
   const mentionCandidates = mentionMatch
@@ -445,10 +584,11 @@ export function TaskDetailModal({
       .slice(0, 6)
     : [];
 
-  const selectMention = (member: any) => {
+  const selectMention = (member: MentionCandidate) => {
     const atIndex = newComment.lastIndexOf("@");
     if (atIndex < 0) return;
     const id = member._id || member.id;
+    if (!id) return;
     setNewComment(`${newComment.slice(0, atIndex)}@${member.name} `);
     setMentionedUsers((current) =>
       current.some((item) => item.id === id)
@@ -1023,7 +1163,7 @@ export function TaskDetailModal({
                     <AvatarImage src={me?.profileImage || me?.avatarUrl} alt={me?.name} />
                     <AvatarFallback className="text-[10px] font-semibold">{me?.name?.charAt(0)?.toUpperCase() || "?"}</AvatarFallback>
                   </Avatar>
-                  <div className="relative flex flex-1 gap-2">
+                  <div ref={mentionAnchorRef} className="relative flex flex-1 gap-2">
                     <Input
                       value={newComment}
                       onChange={(e) => setNewComment(e.target.value)}
@@ -1038,24 +1178,11 @@ export function TaskDetailModal({
                       disabled={isSubmitting}
                     />
                     {mentionCandidates.length > 0 && (
-                      <div className="absolute left-0 top-11 z-50 w-72 overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-lg">
-                        <p className="px-2 py-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-400">Nhắc đến thành viên</p>
-                        {mentionCandidates.map((member: any) => {
-                          const id = member._id || member.id;
-                          return (
-                            <button key={id} type="button" className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left hover:bg-slate-50" onMouseDown={(event) => event.preventDefault()} onClick={() => selectMention(member)}>
-                              <Avatar className="size-7">
-                                <AvatarImage src={member.profileImage || member.avatarUrl} alt={member.name} />
-                                <AvatarFallback className="text-[10px] font-bold">{member.name.charAt(0).toUpperCase()}</AvatarFallback>
-                              </Avatar>
-                              <span className="min-w-0">
-                                <span className="block truncate text-xs font-semibold text-slate-800">{member.name}</span>
-                                {member.email && <span className="block truncate text-[10px] text-slate-400">{member.email}</span>}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
+                      <MentionDropdown
+                        anchorRef={mentionAnchorRef}
+                        candidates={mentionCandidates}
+                        onSelect={selectMention}
+                      />
                     )}
                     <Button size="sm" onClick={handleAddComment} disabled={!newComment.trim() || isSubmitting} className="h-9 cursor-pointer rounded-xl px-3">
                       {isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
@@ -1098,16 +1225,18 @@ export function TaskDetailModal({
                               </span>
                               {isOwner && (
                                 <button
-                                  onClick={() =>
-                                    deleteComment(
-                                      { commentId: c._id, taskId },
-                                      { onError: () => toast.error("Không thể xoá bình luận") }
-                                    )
-                                  }
-                                  className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-rose-500 transition-all p-0.5 rounded cursor-pointer"
-                                  title="Xoá bình luận"
+                                  type="button"
+                                  onClick={() => handleDeleteComment(c._id, "Không thể xoá bình luận")}
+                                  disabled={deletingCommentIds.has(c._id)}
+                                  className={`rounded p-0.5 transition-all disabled:cursor-not-allowed ${deletingCommentIds.has(c._id)
+                                    ? "text-rose-500 opacity-100"
+                                    : "cursor-pointer text-slate-300 opacity-0 hover:text-rose-500 group-hover:opacity-100"
+                                    }`}
+                                  title={deletingCommentIds.has(c._id) ? "Đang xoá bình luận" : "Xoá bình luận"}
                                 >
-                                  <Trash2 className="size-3" />
+                                  {deletingCommentIds.has(c._id)
+                                    ? <Loader2 className="size-3 animate-spin" />
+                                    : <Trash2 className="size-3" />}
                                 </button>
                               )}
                             </div>
@@ -1165,7 +1294,14 @@ export function TaskDetailModal({
                                       <div className="mt-1 flex items-center gap-3 text-xs">
                                         <button type="button" className="font-semibold text-slate-400 hover:text-blue-600" onClick={() => setReplyingTo({ id: reply._id, name: reply.author.name })}>Trả lời</button>
                                         {canDeleteReply && (
-                                          <button type="button" className="font-semibold text-slate-400 hover:text-rose-500" onClick={() => deleteComment({ commentId: reply._id, taskId }, { onError: () => toast.error("Không thể xoá phản hồi") })}>Xoá</button>
+                                          <button
+                                            type="button"
+                                            disabled={deletingCommentIds.has(reply._id)}
+                                            className="font-semibold text-slate-400 hover:text-rose-500 disabled:cursor-not-allowed disabled:text-rose-400"
+                                            onClick={() => handleDeleteComment(reply._id, "Không thể xoá phản hồi")}
+                                          >
+                                            {deletingCommentIds.has(reply._id) ? "Đang xoá..." : "Xoá"}
+                                          </button>
                                         )}
                                       </div>
                                     </div>

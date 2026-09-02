@@ -42,12 +42,12 @@ export default function WorkspaceDetailPage() {
     const [settings, setSettings] = useState({ name: "", description: "", color: "#2563eb", allowMembersCreateProjects: true, allowMembersInvite: false, defaultProjectPrivate: false });
 
     const { data, isLoading, isError, refetch } = useGetWorkspaceById(workspaceId);
-    const { data: pendingMembers } = useGetPendingMembers(workspaceId);
-    const pendingCount = pendingMembers?.length || 0;
     const ownerId = typeof data?.owner === "string" ? data.owner : (data?.owner as any)?._id;
     const isOwner = ownerId === currentUser?._id;
     const currentMembership = data?.members?.find((member: any) => (member.user?._id || member.user) === currentUser?._id) as any;
     const canManageWorkspace = isOwner || ['owner', 'admin'].includes(currentMembership?.role);
+    const { data: pendingMembers } = useGetPendingMembers(workspaceId, canManageWorkspace);
+    const pendingCount = pendingMembers?.length || 0;
     const canCreateProject = canManageWorkspace || (currentMembership?.role === 'member' && data?.allowMembersCreateProjects !== false);
     const canInviteMember = canManageWorkspace || (currentMembership?.role === 'member' && Boolean(data?.allowMembersInvite));
 

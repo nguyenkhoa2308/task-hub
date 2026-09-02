@@ -21,7 +21,7 @@ export function PendingMembersDialog({
   workspaceId,
 }: PendingMembersDialogProps) {
   const queryClient = useQueryClient();
-  const { data: pendingMembers, isLoading } = useGetPendingMembers(workspaceId);
+  const { data: pendingMembers, isLoading } = useGetPendingMembers(workspaceId, isOpen);
   const { mutate: approveMember, isPending: isApproving } = useApproveMember(workspaceId);
   const { mutate: rejectMember, isPending: isRejecting } = useRejectMember(workspaceId);
 

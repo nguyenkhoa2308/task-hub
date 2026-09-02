@@ -135,13 +135,13 @@ export const useJoinWorkspaceByLink = () => {
     });
 };
 
-export const useGetPendingMembers = (workspaceId: string) => {
+export const useGetPendingMembers = (workspaceId: string, enabled = true) => {
     const hasSelectedWorkspace = Boolean(workspaceId && workspaceId !== "all");
     return useQuery({
         queryKey: ["pending-members", workspaceId],
         queryFn: async () =>
             getData<any[]>(`/members/pending/workspace/${workspaceId}`),
-        enabled: hasSelectedWorkspace,
+        enabled: hasSelectedWorkspace && enabled,
     });
 };
 
@@ -227,4 +227,3 @@ export const useTransferWorkspaceOwnership = (workspaceId: string) => {
         onSuccess: refresh,
     });
 };
-

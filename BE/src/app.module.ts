@@ -1,10 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import {
-  ArcjetGuard, ArcjetModule,
-  detectBot,
-  shield,
-} from '@arcjet/nest';
+import { ArcjetModule, detectBot, shield } from '@arcjet/nest';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -24,6 +20,7 @@ import { CleanupModule } from './cleanup/cleanup.module';
 import { validateEnvironment } from './config/env.validation';
 import { ReportsModule } from './reports/reports.module';
 import { SearchModule } from './search/search.module';
+import { AppArcjetGuard } from './security/app-arcjet.guard';
 
 @Module({
   imports: [
@@ -37,20 +34,18 @@ import { SearchModule } from './search/search.module';
       key: process.env.ARCJET_KEY!,
       rules: [
         // Shield protects your app from common attacks e.g. SQL injection
-        shield({ mode: "LIVE" }),
+        shield({ mode: 'LIVE' }),
         // Create a bot detection rule
         detectBot({
-          mode: "LIVE", // Blocks requests. Use "DRY_RUN" to log only
+          mode: 'LIVE', // Blocks requests. Use "DRY_RUN" to log only
           allow: [
-            "CATEGORY:SEARCH_ENGINE", // Google, Bing, etc
-            "CATEGORY:MONITOR", // UptimeRobot và các dịch vụ giám sát uptime
+            'CATEGORY:SEARCH_ENGINE', // Google, Bing, etc
+            'CATEGORY:MONITOR', // UptimeRobot và các dịch vụ giám sát uptime
           ],
         }),
-      ]
+      ],
     }),
-    MongooseModule.forRoot(
-      process.env.MONGODB_URI!,
-    ),
+    MongooseModule.forRoot(process.env.MONGODB_URI!),
     AuthModule,
     UsersModule,
     WorkspacesModule,
@@ -67,9 +62,12 @@ import { SearchModule } from './search/search.module';
     SearchModule,
   ],
   controllers: [AppController],
-  providers: [AppService, {
-    provide: APP_GUARD,
-    useClass: ArcjetGuard,
-  }],
+  providers: [
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: AppArcjetGuard,
+    },
+  ],
 })
-export class AppModule { }
+export class AppModule {}
