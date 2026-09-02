@@ -267,6 +267,7 @@ export function TaskDetailModal({
   );
   const [newSubtask, setNewSubtask] = useState("");
   const [subtaskPendingDelete, setSubtaskPendingDelete] = useState<{ id: string; text: string } | null>(null);
+  const [isSubtaskSaving, setIsSubtaskSaving] = useState(false);
 
   // Comments & Activities (real DB)
   const [newComment, setNewComment] = useState("");
@@ -345,7 +346,7 @@ export function TaskDetailModal({
       setAssignees(activeTask.assignees.map((a: any) => a._id || a.id || a));
     }
     if (Array.isArray(activeTask.watchers)) setWatchers(activeTask.watchers);
-    if (Array.isArray(activeTask.subtasks)) {
+    if (!isSubtaskSaving && Array.isArray(activeTask.subtasks)) {
       setSubtasks(activeTask.subtasks.map((st: any, idx: number) => ({
         id: st._id || st.id || String(idx),
         text: st.title || st.text || "",
@@ -471,12 +472,31 @@ export function TaskDetailModal({
   };
 
   const saveSubtasksToDb = (updated: { id: string; text: string; done: boolean }[]) => {
+    if (!canEdit || !taskId || isSubtaskSaving) return;
+    setIsSubtaskSaving(true);
     setSubtasks(updated);
     const subtasksForPayload = updated.map((st) => ({
       title: st.text,
       completed: st.done,
     }));
-    handleSaveField({ subtasks: subtasksForPayload });
+    updateTask(
+      { id: taskId, data: { subtasks: subtasksForPayload } },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: ["tasks"] });
+          queryClient.invalidateQueries({ queryKey: ["my-tasks"] });
+          queryClient.invalidateQueries({ queryKey: ["projects"] });
+          if (refetchTasks) refetchTasks();
+        },
+        onError: (err: any) => {
+          const message = err?.response?.data?.message || err?.message || "Cập nhật thất bại";
+          toast.error(message);
+        },
+        onSettled: () => {
+          setIsSubtaskSaving(false);
+        },
+      }
+    );
   };
 
   const saveAttachmentsToDb = (updated: { id: string; name: string; url: string; type: "file" | "url"; storageKey?: string; fileType?: string; fileSize?: number }[]) => {
@@ -493,7 +513,7 @@ export function TaskDetailModal({
   };
 
   const handleAddSubtask = () => {
-    if (!canEdit || !newSubtask.trim()) return;
+    if (!canEdit || !newSubtask.trim() || isSubtaskSaving) return;
     const updated = [
       ...subtasks,
       { id: Date.now().toString(), text: newSubtask.trim(), done: false },
@@ -503,7 +523,7 @@ export function TaskDetailModal({
   };
 
   const handleToggleSubtask = (subtaskId: string) => {
-    if (!canEdit) return;
+    if (!canEdit || isSubtaskSaving) return;
     const updated = subtasks.map((s) =>
       s.id === subtaskId ? { ...s, done: !s.done } : s
     );
@@ -511,7 +531,7 @@ export function TaskDetailModal({
   };
 
   const handleDeleteSubtask = () => {
-    if (!canEdit || !subtaskPendingDelete) return;
+    if (!canEdit || !subtaskPendingDelete || isSubtaskSaving) return;
     const updated = subtasks.filter((subtask) => subtask.id !== subtaskPendingDelete.id);
     saveSubtasksToDb(updated);
     setSubtaskPendingDelete(null);
@@ -1100,12 +1120,25 @@ export function TaskDetailModal({
                   <Input
                     value={newSubtask}
                     onChange={(e) => setNewSubtask(e.target.value)}
-                    placeholder="Thêm công việc phụ..."
-                    className="h-9 text-xs rounded-xl"
-                    onKeyDown={(e) => e.key === "Enter" && handleAddSubtask()}
+                    placeholder={isSubtaskSaving ? "Đang lưu công việc phụ..." : "Thêm công việc phụ..."}
+                    disabled={isSubtaskSaving}
+                    className="h-9 text-xs rounded-xl disabled:bg-slate-100 disabled:opacity-60"
+                    onKeyDown={(e) => e.key === "Enter" && !isSubtaskSaving && handleAddSubtask()}
                   />
-                  <Button size="sm" onClick={handleAddSubtask} disabled={!newSubtask.trim()} className="h-9 px-4 text-xs font-bold rounded-xl cursor-pointer">
-                    Thêm
+                  <Button
+                    size="sm"
+                    onClick={handleAddSubtask}
+                    disabled={isSubtaskSaving || !newSubtask.trim()}
+                    className="h-9 px-4 text-xs font-bold rounded-xl cursor-pointer disabled:cursor-not-allowed"
+                  >
+                    {isSubtaskSaving ? (
+                      <span className="flex items-center gap-1.5">
+                        <Loader2 className="size-3.5 animate-spin" />
+                        Đang thêm...
+                      </span>
+                    ) : (
+                      "Thêm"
+                    )}
                   </Button>
                 </div>
               )}
@@ -1121,7 +1154,7 @@ export function TaskDetailModal({
                         <input
                           type="checkbox"
                           checked={st.done}
-                          disabled={!canEdit}
+                          disabled={!canEdit || isSubtaskSaving}
                           onChange={() => handleToggleSubtask(st.id)}
                           className="rounded size-4 text-blue-600 focus:ring-blue-500/20 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
                         />
@@ -1131,7 +1164,8 @@ export function TaskDetailModal({
                       </label>
                       {canEdit && <button
                         onClick={() => setSubtaskPendingDelete({ id: st.id, text: st.text })}
-                        className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-500 p-1 rounded-md transition-all cursor-pointer"
+                        disabled={isSubtaskSaving}
+                        className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-500 p-1 rounded-md transition-all cursor-pointer disabled:opacity-0 disabled:cursor-not-allowed"
                         title="Xoá công việc phụ"
                       >
                         <Trash2 className="size-3.5" />
