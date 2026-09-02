@@ -296,9 +296,9 @@ export default function DashboardHeader({
               </DropdownMenuTrigger>
 
               <DropdownMenuContent align="end" className="w-80 overflow-hidden rounded-2xl border border-slate-200 p-0 shadow-xl sm:w-96 max-md:!fixed max-md:!inset-y-0 max-md:!right-0 max-md:!left-auto max-md:!top-0 max-md:!z-[60] max-md:!flex max-md:!h-dvh max-md:!w-[86vw] max-md:!max-w-[340px] max-md:!translate-x-0 max-md:!translate-y-0 max-md:!flex-col max-md:!rounded-none max-md:!duration-300 max-md:data-[state=open]:slide-in-from-right-full max-md:data-[state=open]:zoom-in-100 max-md:data-[state=closed]:slide-out-to-right-full max-md:data-[state=closed]:zoom-out-100">
-                <div className="p-3.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="font-extrabold text-slate-800 text-sm">Thông báo</span>
+                <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-slate-50 p-3.5">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span className="shrink-0 text-sm font-extrabold text-slate-800">Thông báo</span>
                     {unreadCount > 0 && (
                       <span className="px-2 py-0.5 text-[10px] font-bold bg-rose-100 text-rose-700 rounded-full">
                         {unreadCount} chưa đọc
@@ -308,7 +308,7 @@ export default function DashboardHeader({
                   {unreadCount > 0 && (
                     <button
                       onClick={() => markAllAsRead()}
-                      className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1 cursor-pointer transition-colors"
+                      className="flex shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap text-xs font-semibold text-blue-600 transition-colors hover:text-blue-700"
                     >
                       <CheckCheck className="size-3.5" />
                       <span>Đọc tất cả</span>
@@ -317,23 +317,6 @@ export default function DashboardHeader({
                   <button type="button" className="ml-1 rounded-md p-1 text-slate-500 hover:bg-slate-200 md:hidden" onClick={() => setIsNotificationOpen(false)} aria-label="Đóng thông báo">
                     <X className="size-5" />
                   </button>
-                  {hasNextPage && (
-                    <div className="border-t border-slate-100 p-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        disabled={isFetchingNextPage}
-                        onClick={(event) => {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          fetchNextPage();
-                        }}
-                        className="w-full text-xs font-semibold text-blue-600"
-                      >
-                        {isFetchingNextPage ? "Đang tải..." : "Tải thêm thông báo"}
-                      </Button>
-                    </div>
-                  )}
                 </div>
 
                 {/* Notification List */}
@@ -384,6 +367,23 @@ export default function DashboardHeader({
                     ))
                   )}
                 </div>
+                {hasNextPage && (
+                  <div className="border-t border-slate-100 p-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={isFetchingNextPage}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        fetchNextPage();
+                      }}
+                      className="w-full text-xs font-semibold text-blue-600"
+                    >
+                      {isFetchingNextPage ? "Đang tải..." : "Tải thêm thông báo"}
+                    </Button>
+                  </div>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
